@@ -7,4 +7,5 @@
           #:dump-db
           #:clear-db
           #:!
-          #:@))
+          #:@
+          #:inc))

@@ -41,9 +41,17 @@
 (defun @ (db key &optional default)
     (gethash key (db-hash db) default))
 
-(defun ! (db key value)
-  (setf (gethash key (db-hash db)) value))
+(defmacro def-update-op (op (db hash &rest args) &body body)
+  `(defun ,op (,db ,@args)
+     (let ((,hash (db-hash ,db)))
+       (sb-ext:with-locked-hash-table (,hash)
+         ,@body))))
 
+(def-update-op ! (db hash key value)
+  (setf (gethash key hash) value))
+
+(def-update-op inc (db hash key &optional (delta 1))
+  (incf (gethash key hash 0) delta))
 
 
 (defun dump-db (db)

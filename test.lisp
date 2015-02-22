@@ -21,4 +21,15 @@
     (is (string= "world" (@ db "hello")))
     (is (equalp (make-foo :a 1 :b 'xxx) (@ db :foo1)))))
 
+(def-test inc ()
+  (with-db (db "/tmp/lepis/")
+    (clear-db db)
+    (mapcan #'sb-thread:join-thread
+            (loop repeat 10
+                  collect (sb-thread:make-thread
+                           (lambda ()
+                             (loop repeat 1000
+                                   do (inc db :inc))))))
+    (is (= 10000 (@ db :inc)))))
+
 (debug!)
