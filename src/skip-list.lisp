@@ -10,7 +10,7 @@
   (max-level 0 :type fixnum)
   head)
 
-(defun make-skip-list (&key (expected-record-count 100) (p 0.25))
+(defun make-skip-list (&key (expected-record-count #xffffffffffffffff) (p 0.25))
   (let ((max-level (ceiling (log expected-record-count (/ 1 p)))))
    (%make-skip-list :level-p p
                     :max-level max-level
@@ -57,11 +57,11 @@
             do (return i))))
 
 (defun %skip-list-add (skip-list prevs key val)
-  (let ((new-node (make-skip-list-node
-                   :key key :val val
-                   :next (make-array (the fixnum (skip-list-max-level skip-list))
-                                     :initial-element nil)))
-        (top-level (compute-level-for-add skip-list)))
+  (let* ((top-level (compute-level-for-add skip-list))
+         (new-node (make-skip-list-node
+                    :key key :val val
+                    :next (make-array top-level
+                                      :initial-element nil))))
     (loop for level fixnum from 0 below top-level
           for prev across (the simple-vector prevs)
           do (shiftf (aref (the simple-vector (skip-list-node-next new-node)) level)
@@ -98,6 +98,15 @@
 
 
 (defun print-skip-list (skip-list &optional (stream *standard-output*))
+  (loop for level from (1- (skip-list-max-level skip-list)) down to 0
+        do (format stream "~&~d ~d" level
+                   (loop for node = (aref (skip-list-node-next (skip-list-head skip-list))
+                                          level)
+                           then (aref (skip-list-node-next node) level)
+                         while node
+                         sum 1)))
+  
+  #+nil
   (loop with max-level fixnum = (skip-list-max-level skip-list)
         with level fixnum = (1- max-level)
           initially (format stream "~&~a " level)
@@ -123,15 +132,41 @@
     (assert (string= "b" (skip-list-search s 2)))
     (skip-list-remove s 2)
     (assert (null (skip-list-search s 2)))
-    (loop repeat 10
-          for key = (random 1000)
+    (loop repeat 1000000
+          for key = (random 10000000000000)
           do (skip-list-add s key key))
     (print-skip-list s)))
 
-(make-skip-list)
+(aprog1 (make-skip-list)
+  (skip-list-add it 3 3)
+  (skip-list-add it 1 1)
+  (skip-list-add it 2 2))
 ;;⇒ #S(SKIP-LIST
 ;;      :LEVEL-P 0.25
-;;      :MAX-LEVEL 4
-;;      :HEAD #S(SKIP-LIST-NODE :KEY 0.0d0 :VAL NIL :NEXT #(NIL NIL NIL NIL)))
-
+;;      :MAX-LEVEL 32
+;;      :HEAD #S(SKIP-LIST-NODE
+;;               :KEY 0.0d0
+;;               :VAL NIL
+;;               :NEXT #(#S(SKIP-LIST-NODE
+;;                          :KEY 1.0d0
+;;                          :VAL 1
+;;                          :NEXT #(#S(SKIP-LIST-NODE
+;;                                     :KEY 2.0d0
+;;                                     :VAL 2
+;;                                     :NEXT #(#S(SKIP-LIST-NODE
+;;                                                :KEY 3.0d0
+;;                                                :VAL 3
+;;                                                :NEXT #(NIL))
+;;                                             NIL))))
+;;                       #S(SKIP-LIST-NODE
+;;                          :KEY 2.0d0
+;;                          :VAL 2
+;;                          :NEXT #(#S(SKIP-LIST-NODE
+;;                                     :KEY 3.0d0
+;;                                     :VAL 3
+;;                                     :NEXT #(NIL))
+;;                                  NIL))
+;;                       NIL NIL NIL NIL NIL NIL NIL NIL NIL NIL NIL NIL NIL NIL NIL
+;;                       NIL NIL NIL NIL NIL NIL NIL NIL NIL NIL NIL NIL NIL NIL
+;;                       NIL)))
 
