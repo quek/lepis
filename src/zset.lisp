@@ -20,6 +20,9 @@
                    (zset-tree zset) (tree-add (zset-tree zset) score key)))
     new-count))
 
+(defun zset-range (zset start stop)
+  (let* ((tree (zset-tree zset)))
+    ))
 
 #+nil
 (let ((zset (make-zset)))

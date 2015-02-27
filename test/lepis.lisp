@@ -1,8 +1,8 @@
-(defpackage :lepis.test
-  (:use :cl :lepis :fiveam)
-  (:shadowing-import-from :lepis #:! ))
-
 (in-package :lepis.test)
+
+(def-suite lepis :in all)
+
+(in-suite lepis)
 
 (defstruct foo
   a b)

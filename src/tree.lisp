@@ -3,13 +3,10 @@
   (:export #:tree-add
            #:tree-delete
            #:tree-search
-           #:tree-search-range))
+           #:tree-search-range-by-index
+           #:tree-search-range-by-score))
 
 (in-package :lepis.tree)
-
-(defun tree-add (tree key value)
-  (aprog1 (insert tree key value)
-    (setf (node-color it) +rbt-black+)))
 
 
 (defconstant +rbt-red+ 0)
@@ -27,24 +24,43 @@
   key
   value
   (color +rbt-red+)
+  (size 1)
   left
   right)
 
 (defun rotate-right (node)
-  (let ((left (node-left node)))
-    (setf (node-left node) (node-right left)
+  (let* ((left (node-left node))
+         (left-right (node-right left))
+         (right (node-right node)))
+    (setf (node-left node) left-right
           (node-right left) node
           (node-color left) (node-color node)
-          (node-color node) +rbt-red+)
+          (node-color node) +rbt-red+
+          (node-size left) (node-size node)
+          (node-size node)
+          (+ (if left-right (node-size left-right) 0)
+             (if right (node-size right) 0)
+             1))
     left))
 
 (defun rotate-left (node)
-  (let ((right (node-right node)))
-    (setf (node-right node) (node-left right)
+  (let* ((right (node-right node))
+         (right-left (node-left right))
+         (left (node-left node)))
+    (setf (node-right node) right-left
           (node-left right) node
           (node-color right) (node-color node)
-          (node-color node) +rbt-red+)
+          (node-color node) +rbt-red+
+          (node-size right) (node-size node)
+          (node-size node)
+          (+ (if right-left (node-size right-left) 0)
+             (if left (node-size left) 0)
+             1))
     right))
+
+(defun tree-add (tree key value)
+  (aprog1 (insert tree key value)
+    (setf (node-color it) +rbt-black+)))
 
 (defun insert (node key value)
   (let (flag)
@@ -60,6 +76,7 @@
            (rbt-balance-insert-right node flag))
           (t
            (push value (node-value node))
+           (incf (node-size node))
            (values node t)))))
 
 (defun rbt-split (node)
@@ -81,6 +98,7 @@
                (progn (rbt-split node)
                       (setf flag nil))
                (setf node (rotate-right node))))))
+  (incf (node-size node))
   (values node flag))
 
 (defun rbt-balance-insert-right (node flag)
@@ -97,6 +115,7 @@
                  (rbt-split node)
                  (setf flag nil))
                (setf node (rotate-left node))))))
+  (incf (node-size node))
   (values node flag))
 
 (defun tree-search (node key)
@@ -110,19 +129,49 @@
               (t
                (tree-search (node-right node) key))))))
 
-(defun tree-search-range (node start end)
-  (nreverse (%tree-search-range node start end nil)))
+(defun tree-size (node)
+  (if (null node)
+      0
+      (+ 1
+         (tree-size (node-left node))
+         (tree-size (node-right node)))))
 
-(defun %tree-search-range (node start end acc)
+(defun tree-at-rank (node rank)
+  (if (or (< rank 0) (<= (tree-size node) rank))
+      nil
+      (%tree-at-rank node rank)))
+
+(defun %tree-at-rank (node rank)
+  (let ((size (tree-size (node-left node))))
+    (cond ((< rank size)
+           (%tree-at-rank (node-left node) rank))
+          ((< size rank)
+           (%tree-at-rank (node-right node) (- rank size 1)))
+          (t node))))
+
+#+nil
+(let (tree)
+  (loop for i to 9 do (setf tree (tree-add tree i i)))
+  (loop for i from -1 to 10 collect (node-key (or (tree-at-rank tree i) (make-node)))))
+;;⇒ (NIL 0 1 2 3 4 5 6 7 8 9 NIL)
+
+
+(defun tree-search-range-by-rank (node start end)
+  )
+
+(defun tree-search-range-by-score (node min max)
+  (nreverse (%tree-search-range-by-score node min max nil)))
+
+(defun %tree-search-range-by-score (node min max acc)
   (if (null node)
       acc
       (let ((key (node-key node)))
-        (when (< start key)
-          (setf acc (%tree-search-range (node-left node) start end acc)))
-        (when (<= start key end)
+        (when (< min key)
+          (setf acc (%tree-search-range-by-score (node-left node) min max acc)))
+        (when (<= min key max)
           (setf acc (cons node acc)))
-        (when (< key end)
-          (setf acc (%tree-search-range (node-right node) start end acc)))
+        (when (< key max)
+          (setf acc (%tree-search-range-by-score (node-right node) min max acc)))
         acc)))
 
 (defun search-min (node)
@@ -245,13 +294,14 @@
 #+nil
 (loop repeat 100 do
  (let ((node nil))
-   (loop for i in (shuffle (loop for i to 1000 collect i))
-         do (setf node (insert node i i)
-                  (node-color node) +rbt-black+))
+   (loop for i in (shuffle (loop for i below 1000 collect i))
+         do (setf node (tree-add node i i)))
    (assert (= 0 (node-value (tree-search node 0))))
    (assert (= 77 (node-value (tree-search node 77))))
    (assert (= 100 (node-value (tree-search node 100))))
    (tree-delete node 73)
    (tree-delete node 76)
    (assert (equal '(71 72 74 75 77)
-                  (mapcar #'node-value (tree-search-range node 71 77))))))
+                  (mapcar #'node-value (tree-search-range-by-score node 71 77))))
+   (assert (= 1001 (node-size node)))))
+
