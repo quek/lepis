@@ -4,7 +4,7 @@
            #:tree-delete
            #:tree-size
            #:tree-search
-           #:tree-search-range-by-index
+           #:tree-search-range-by-rank
            #:tree-search-range-by-score))
 
 (in-package :lepis.tree)
@@ -190,44 +190,38 @@
 ;;⇒ NIL
 
 
-;; TODO size みて start 位置をさがせるはず
 (defun tree-search-range-by-rank (node start end)
-  (let (acc)
-    (map-tree (lambda (node)
-                (if (zerop start)
-                    (progn
-                      (when (minusp end)
-                        (return-from tree-search-range-by-rank (nreverse acc)))
-                      (push node acc))
-                    (decf start))
-                (decf end))
-              node)
-    (nreverse acc))))
+  (let ((count (- end start -1)))
+    (when (plusp count)
+      (nreverse (%range-by-rank node start count nil)))))
 
+(defun %range-by-rank (node start count parents)
+  (let ((size (tree-size (node-left node))))
+    (cond ((< start size)
+           (%range-by-rank (node-left node) start count (cons node parents)))
+          ((= start size)
+           (let ((acc nil))
+             (mapc (lambda (node)
+                     #1=(if (zerop count)
+                            (return-from %range-by-rank acc))
+                     (push node acc)
+                     (decf count)
+                     #1#
+                     (block map
+                       (map-tree (lambda (node)
+                                   #1#
+                                   (push node acc)
+                                   (decf count))
+                                 (node-right node))))
+                   (cons node parents))
+             acc))
+          (t
+           (%range-by-rank (node-right node) (- start size 1) count parents)))))
 #+nil
 (let (node)
   (loop for i to 10 do (setf node (tree-add node i i)))
   (mapcar #'node-key (tree-search-range-by-rank node 3 6)))
 ;;⇒ (3 4 5 6)
-
-
-
-(defun take-n (node n)
-  (let (acc)
-    (map-tree (lambda (node)
-                (when (zerop n)
-                  (return-from take-n (nreverse acc)))
-                (print (node-key node))
-                (decf n)
-                (push node acc))
-              node)
-    (nreverse acc)))
-#+nil
-(let (node)
-  (loop for i to 10 do (setf node (tree-add node i i)))
-  (mapcar #'node-key (take-n node 3)))
-;;⇒ (0 1 2)
-
 
 
 (defun tree-search-range-by-score (node min max)
