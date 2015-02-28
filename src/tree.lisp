@@ -234,18 +234,16 @@
     (cond ((< start size)
            (%range-by-rank (node-left node) start count (cons node parents)))
           ((= start size)
-           (let ((acc nil))
+           (let (acc)
              (mapc (lambda (node)
-                     #1=(if (zerop count)
-                            (return-from %range-by-rank acc))
-                     (push node acc)
-                     (decf count)
-                     #1#
+                     #1=(progn
+                          (if (zerop count)
+                              (return-from %range-by-rank acc))
+                          (push node acc)
+                          (decf count))
                      (block map
                        (map-tree (lambda (node)
-                                   #1#
-                                   (push node acc)
-                                   (decf count))
+                                   #1#)
                                  (node-right node))))
                    (cons node parents))
              acc))
@@ -257,21 +255,43 @@
   (mapcar #'node-key (tree-search-range-by-rank node 3 6)))
 ;;⇒ (3 4 5 6)
 
+(defun %range-by-score-start (node min parents)
+  (cond ((null node)
+         parents)
+        ((<= min (node-key node))
+         (%range-by-score-start (node-left node) min (cons node parents)))
+        (t
+         (%range-by-score-start (node-right node) min parents))))
 
-(defun tree-search-range-by-score (node min max)
-  (nreverse (%tree-search-range-by-score node min max nil)))
+(defun %range-by-score (node min max offset limit)
+  (let ((parents (%range-by-score-start node min nil))
+        acc)
+    (mapc (lambda (node)
+            #1=(progn
+                 (if (or (zerop limit) (< max (node-key node)))
+                     (return-from %range-by-score acc))
+                 (if (zerop offset)
+                     (progn
+                       (push node acc)
+                       (and limit (decf limit)))
+                     (decf offset)))
+            (block map
+              (map-tree (lambda (node)
+                          #1#)
+                        (node-right node))))
+          parents)
+    acc))
 
-(defun %tree-search-range-by-score (node min max acc)
-  (if (null node)
-      acc
-      (let ((key (node-key node)))
-        (when (<= min key)
-          (setf acc (%tree-search-range-by-score (node-left node) min max acc)))
-        (when (<= min key max)
-          (setf acc (cons node acc)))
-        (when (<= key max)
-          (setf acc (%tree-search-range-by-score (node-right node) min max acc)))
-        acc)))
+(defun tree-search-range-by-score (node min max offset limit)
+  (let ((limit (or limit (tree-size node))))
+    (nreverse (%range-by-score node min max offset limit))))
+
+#+nil
+(let (node)
+  (loop for i to 10 do (setf node (tree-add node i i)))
+  (mapcar #'node-key (range-by-score node 3 7 1 3)))
+;;⇒ (4 5 6)
+
 
 (defun search-min (node)
   (if (null (node-left node))

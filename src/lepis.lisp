@@ -75,9 +75,9 @@
   (let ((zset (gethash key hash)))
     (zset-range zset start stop with-scores)))
 
-(def-read-op zrang-by-score (db hash key min max &key with-scores)
+(def-read-op zrang-by-score (db hash key min max &key with-scores (offset 0) limit)
   (let ((zset (gethash key hash)))
-    (zset-range-by-score zset min max with-scores)))
+    (zset-range-by-score zset min max with-scores offset limit)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; dump & load

@@ -40,8 +40,8 @@
     (is (equal '((foo . 1) (bar . 2) (baz . 3) (foz . 4))
                (zrang db :zset 0 nil :with-scores t)))
     (is (equal '(bar baz) (zrang-by-score db :zset 2 3)))
-    (is (equal '((foo . 1) (bar . 2) (baz . 3) (foz . 4))
+    (is (equal '((bar . 2) (baz . 3))
                (zrang-by-score db :zset most-negative-double-float most-positive-double-float
-                               :with-scores t)))))
+                               :with-scores t :offset 1 :limit 2)))))
 
 (debug!)

@@ -31,14 +31,14 @@
                 #'lepis.tree::node-value)
             (tree-search-range-by-rank tree start stop))))
 
-(defun zset-range-by-score (zset min max with-scores)
+(defun zset-range-by-score (zset min max with-scores offset limit)
   (let ((tree (zset-tree zset)))
     (mapcar (if with-scores
                 (lambda (node)
                   (cons (lepis.tree::node-value node)
                         (lepis.tree::node-key node)))
                 #'lepis.tree::node-value)
-            (tree-search-range-by-score tree min max))))
+            (tree-search-range-by-score tree min max offset limit))))
 
 
 #+nil
