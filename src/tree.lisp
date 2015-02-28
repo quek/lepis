@@ -27,6 +27,27 @@
 (defun black-p (node)
   (not (red-p node)))
 
+(defgeneric value< (x y)
+  (:method (x y)
+    (< (sxhash x) (sxhash y)))
+  (:method ((x number) (y number))
+    (< x y))
+  (:method ((x string) (y string))
+    (string< x y))
+  (:method ((x symbol) (y symbol))
+    (string< (symbol-name x) (symbol-name y))))
+
+(defgeneric value= (x y)
+  (:method (x y)
+    (= (sxhash x) (sxhash y)))
+  (:method ((x number) (y number))
+    (= x y))
+  (:method ((x string) (y string))
+    (string= x y))
+  (:method ((x symbol) (y symbol))
+    (string= (symbol-name x) (symbol-name y))))
+
+
 (defstruct node
   key
   value
@@ -74,22 +95,35 @@
   (aprog1 (insert tree key value)
     (setf (node-color it) +rbt-black+)))
 
-(defun insert (node key value)
+(declaim (inline insert-left))
+(defun insert-left (node key value)
   (let (flag)
-    (cond ((null node)
-           (values (make-node :key key :value value) nil))
-          ((< key (node-key node))
-           (setf (values (node-left node) flag)
-                 (insert (node-left node) key value))
-           (rbt-balance-insert-left node flag))
-          ((> key (node-key node))
-           (setf (values (node-right node) flag)
-                 (insert (node-right node) key value))
-           (rbt-balance-insert-right node flag))
-          (t
-           (push value (node-value node))
-           (incf (node-size node))
-           (values node t)))))
+    (setf (values (node-left node) flag)
+          (insert (node-left node) key value))
+    (rbt-balance-insert-left node flag)))
+
+(declaim (inline insert-right))
+(defun insert-right (node key value)
+  (let (flag)
+    (setf (values (node-right node) flag)
+          (insert (node-right node) key value))
+    (rbt-balance-insert-right node flag)))
+
+(defun insert (node key value)
+  (if (null node)
+      (values (make-node :key key :value value) nil)
+      (let ((node-key (node-key node)))
+        (cond ((< key node-key)
+               (insert-left node key value))
+              ((> key node-key)
+               (insert-right node key value))
+              (t (let ((node-value (node-value node)))
+                   (cond ((< value node-value)
+                          (insert-left node key value))
+                         ((> value node-value)
+                          (insert-right node key value))
+                         (t
+                          (setf (node-value node) value)))))))))
 
 (defun rbt-split (node)
   (setf (node-color node) +rbt-red+
@@ -190,8 +224,8 @@
 ;;⇒ NIL
 
 
-(defun tree-search-range-by-rank (node start end)
-  (let ((count (- end start -1)))
+(defun tree-search-range-by-rank (node start &optional end)
+  (let ((count (if end (- end start -1) (tree-size node))))
     (when (plusp count)
       (nreverse (%range-by-rank node start count nil)))))
 
