@@ -79,6 +79,11 @@
   (let ((zset (gethash key hash)))
     (zset-range-by-score zset min max with-scores offset limit)))
 
+(def-read-op zcard (db hash key)
+  (aif (gethash key hash)
+       (zset-card it)
+       0))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; dump & load
 (defun dump-db (db)

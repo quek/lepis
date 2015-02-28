@@ -9,6 +9,7 @@
           #:!
           #:@
           #:inc
+          #:zcard
           #:zadd
           #:zrang
           #:zrang-by-score))

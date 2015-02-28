@@ -1,6 +1,7 @@
 (defpackage :lepis.zset
   (:use :cl :lepis.tree)
   (:export #:make-zset
+           #:zset-card
            #:zset-add
            #:zset-rem
            #:zset-range
@@ -12,11 +13,17 @@
   (hash (make-hash-table :test 'equal))
   tree)
 
+(defun zset-card (zset)
+  (hash-table-count (zset-hash zset)))
+
 (defun zset-add (zset &rest score-key-s)
   (let ((hash (zset-hash zset))
         (new-count 0))
     (loop for (score key) on score-key-s by #'cddr
-          unless (gethash key hash)
+          for old-score = (gethash key hash)
+          if old-score
+            do (setf (zset-tree zset) (tree-delete (zset-tree zset) old-score key))
+          else
             do (incf new-count)
           do (setf (gethash key hash) score
                    (zset-tree zset) (tree-add (zset-tree zset) score key)))
