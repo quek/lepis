@@ -265,11 +265,11 @@
   (if (null node)
       acc
       (let ((key (node-key node)))
-        (when (< min key)
+        (when (<= min key)
           (setf acc (%tree-search-range-by-score (node-left node) min max acc)))
         (when (<= min key max)
           (setf acc (cons node acc)))
-        (when (< key max)
+        (when (<= key max)
           (setf acc (%tree-search-range-by-score (node-right node) min max acc)))
         acc)))
 
