@@ -2,12 +2,19 @@
   (:use :cl :anaphora)
   (:export #:tree-add
            #:tree-delete
+           #:tree-size
            #:tree-search
            #:tree-search-range-by-index
            #:tree-search-range-by-score))
 
 (in-package :lepis.tree)
 
+#|
+* 各節は赤または黒に区分される。
+* ある節が赤ならばその子は必ず黒である。黒節の子に制限はない。
+* ルートから葉までの黒節の個数を「黒高さ」という。赤黒木はどの経路でも黒高さが同じになる。
+* ルートの節は黒である。
+|#
 
 (defconstant +rbt-red+ 0)
 (defconstant +rbt-black+ 1)
@@ -18,7 +25,7 @@
 
 (declaim (inline black-p))
 (defun black-p (node)
-  (or (null node) (= (node-color node) +rbt-black+)))
+  (not (red-p node)))
 
 (defstruct node
   key
@@ -27,6 +34,11 @@
   (size 1)
   left
   right)
+
+(defun tree-size (tree)
+  (if tree
+      (node-size tree)
+      0))
 
 (defun rotate-right (node)
   (let* ((left (node-left node))
@@ -129,12 +141,6 @@
               (t
                (tree-search (node-right node) key))))))
 
-(defun tree-size (node)
-  (if (null node)
-      0
-      (+ 1
-         (tree-size (node-left node))
-         (tree-size (node-right node)))))
 
 (defun tree-at-rank (node rank)
   (if (or (< rank 0) (<= (tree-size node) rank))
@@ -212,52 +218,62 @@
                (balance-right node flag))))))
 
 (defun balance-left (node flag)
-  (cond (flag (values node flag))
-        ((and (black-p (node-left (node-right node)))
-              (black-p (node-right (node-right node))))
-         (if (black-p (node-right node))
-             (progn
-               (setf (node-color (node-right node)) +rbt-red+)
-               (if (red-p node)
-                   (progn
-                     (setf (node-color node) +rbt-black+)
-                     (values node t))
-                   (values node nil)))
-             (progn
-               (setf node (rotate-left node)
-                     (node-left node) (balance-left (node-left node) nil))
-               (values node t))))
-        (t
-         (when (red-p (node-left (node-right node)))
-           (setf (node-right node) (rotate-right (node-right node))))
-         (setf node (rotate-left node)
-               (node-color (node-left node)) +rbt-black+
-               (node-color (node-right node)) +rbt-black+)
-         (values node t))))
+  (unless flag
+    (let ((right (node-right node)))
+      (cond ((and (black-p (node-left right))
+                  (black-p (node-right right)))
+             (if (black-p right)
+                 (progn
+                   (setf (node-color right) +rbt-red+)
+                   (if (red-p node)
+                       (setf (node-color node) +rbt-black+
+                             flag t)
+                       (setf flag nil)))
+                 (setf node (rotate-left node)
+                       (node-left node) (balance-left (node-left node) nil)
+                       flag t)))
+            (t
+             (when (red-p (node-left right))
+               (setf (node-right node) (rotate-right right)))
+             (setf node (rotate-left node)
+                   (node-color (node-left node)) +rbt-black+
+                   (node-color (node-right node)) +rbt-black+
+                   flag t)))))
+  (when node
+    (setf (node-size node)
+          (+ (tree-size (node-left node))
+             (tree-size (node-right node))
+             1)))
+  (values node flag))
 
 (defun balance-right (node flag)
-  (cond (flag (values node flag))
-        ((and (black-p (node-left (node-left node)))
-              (black-p (node-right (node-left node))))
-         (if (black-p (node-left node))
-             (progn
-               (setf (node-color (node-left node)) +rbt-red+)
-               (if (red-p node)
-                   (progn
-                     (setf (node-color node) +rbt-black+)
-                     (values node t))
-                   (values node nil)))
-             (progn
-               (setf node (rotate-right node)
-                     (node-right node) (balance-right (node-right node) nil))
-               (values node t))))
-        (t
-         (when (red-p (node-right (node-left node)))
-           (setf (node-left node) (rotate-left (node-left node))))
-         (setf node (rotate-right node)
-               (node-color (node-right node)) +rbt-black+
-               (node-color (node-left node)) +rbt-black+)
-         (values node t))))
+  (unless flag
+    (let ((left (node-left node)))
+      (cond ((and (black-p (node-left left))
+                  (black-p (node-right left)))
+             (if (black-p left)
+                 (progn
+                   (setf (node-color left) +rbt-red+)
+                   (if (red-p node)
+                       (setf (node-color node) +rbt-black+
+                             flag t)
+                       (setf flag nil)))
+                 (setf node (rotate-right node)
+                       (node-right node) (balance-right (node-right node) nil)
+                       flag t)))
+            (t
+             (when (red-p (node-right left))
+               (setf (node-left node) (rotate-left left)))
+             (setf node (rotate-right node)
+                   (node-color (node-right node)) +rbt-black+
+                   (node-color (node-left node)) +rbt-black+
+                   flag t)))))
+  (when node
+    (setf (node-size node)
+          (+ (tree-size (node-left node))
+             (tree-size (node-right node))
+             1)))
+  (values node flag))
 
 (defun rbt-check (node)
   (cond ((null node)
@@ -303,5 +319,4 @@
    (tree-delete node 76)
    (assert (equal '(71 72 74 75 77)
                   (mapcar #'node-value (tree-search-range-by-score node 71 77))))
-   (assert (= 1001 (node-size node)))))
-
+   (assert (= 998 (node-size node)))))
