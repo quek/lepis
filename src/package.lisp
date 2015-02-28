@@ -1,5 +1,5 @@
 (defpackage :lepis
- (:use :cl :anaphora :lepis.tree)
+ (:use :cl :anaphora :lepis.zset)
  (:export #:open-db
           #:close-db
           #:with-db
@@ -8,4 +8,7 @@
           #:clear-db
           #:!
           #:@
-          #:inc))
+          #:inc
+          #:zadd
+          #:zrang
+          #:zrang-by-score))

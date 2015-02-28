@@ -38,22 +38,49 @@
 (defun clear-db (db)
   (clrhash (db-hash db)))
 
-(defun @ (db key &optional default)
-    (gethash key (db-hash db) default))
+(defmacro def-read-op (op (db hash &rest args) &body body)
+  `(defun ,op (,db ,@args)
+     (let ((,hash (db-hash ,db)))
+       ,@body)))
 
-(defmacro def-update-op (op (db hash &rest args) &body body)
+(defmacro def-write-op (op (db hash &rest args) &body body)
   `(defun ,op (,db ,@args)
      (let ((,hash (db-hash ,db)))
        (sb-ext:with-locked-hash-table (,hash)
          ,@body))))
 
-(def-update-op ! (db hash key value)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; object
+
+(def-read-op @ (db hash key &optional default)
+  (gethash key hash default))
+
+(def-write-op ! (db hash key value)
   (setf (gethash key hash) value))
 
-(def-update-op inc (db hash key &optional (delta 1))
+(def-write-op inc (db hash key &optional (delta 1))
   (incf (gethash key hash 0) delta))
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; zset
+
+(def-write-op zadd (db hash key score member &rest more-score-members)
+  (let ((zset (gethash key hash)))
+    (unless zset
+      (setf zset (setf (gethash key hash) (make-zset))))
+    (apply #'zset-add zset score member more-score-members)))
+
+(def-read-op zrang (db hash key start stop &key with-scores)
+  (let ((zset (gethash key hash)))
+    (zset-range zset start stop with-scores)))
+
+(def-read-op zrang-by-score (db hash key min max &key with-scores)
+  (let ((zset (gethash key hash)))
+    (zset-range-by-score zset min max with-scores)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; dump & load
 (defun dump-db (db)
   (let ((file (multiple-value-bind (_ file)
                   (sb-posix:mkstemp
@@ -73,8 +100,7 @@
 (defun load-db (db)
   (with-open-file (in (db-dump-file db))
     (with-standard-io-syntax
-      (let ((hash (db-hash db))
-            (*read-eval* nil))
+      (let ((hash (db-hash db)))
         (clrhash hash)
         (loop for key = (read in nil in)
               for value = (read in nil in)

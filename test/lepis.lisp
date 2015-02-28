@@ -32,4 +32,16 @@
                                  do (inc db :inc))))))
     (is (= 10000 (@ db :inc)))))
 
+(def-test zset ()
+  (with-db (db "/tmp/lepis/")
+    (clear-db db)
+    (zadd db :zset 1 'foo 2 'bar 3 'baz 4 'foz)
+    (is (equal '(foo bar baz foz) (zrang db :zset 0 nil)))
+    (is (equal '((foo . 1) (bar . 2) (baz . 3) (foz . 4))
+               (zrang db :zset 0 nil :with-scores t)))
+    (is (equal '(bar baz) (zrang-by-score db :zset 2 3)))
+    (is (equal '((foo . 1) (bar . 2) (baz . 3) (foz . 4))
+               (zrang-by-score db :zset most-negative-double-float most-positive-double-float
+                               :with-scores t)))))
+
 (debug!)
