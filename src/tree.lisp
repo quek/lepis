@@ -118,12 +118,12 @@
               ((> key node-key)
                (insert-right node key value))
               (t (let ((node-value (node-value node)))
-                   (cond ((< value node-value)
+                   (cond ((value< value node-value)
                           (insert-left node key value))
-                         ((> value node-value)
-                          (insert-right node key value))
+                         ((value= value node-value)
+                          (setf (node-value node) value))
                          (t
-                          (setf (node-value node) value)))))))))
+                          (insert-right node key value)))))))))
 
 (defun rbt-split (node)
   (setf (node-color node) +rbt-red+
@@ -278,14 +278,15 @@
       node
       (search-min (node-left node))))
 
-(defun tree-delete (node delete-key)
+(defun tree-delete (node delete-key delete-value)
   (if (null node)
       (values nil t)
       (let (flag
             (key (node-key node))
+            (value (node-value node))
             (left (node-left node))
             (right (node-right node)))
-        (cond ((= delete-key key)
+        (cond ((and (= delete-key key) (value= delete-value value))
                (cond ((and (null left) (null right))
                       (values nil (red-p node)))
                      ((null right)
@@ -299,15 +300,15 @@
                         (setf (node-key node) (node-key min)
                               (node-value node) (node-value min)
                               (values (node-right node) flag)
-                              (tree-delete right (node-key min)))
+                              (tree-delete right (node-key min) (node-value min)))
                         (balance-right node flag)))))
-              ((< delete-key key)
+              ((or (< delete-key key) (and (= delete-key key) (value< delete-value value)))
                (setf (values (node-left node) flag)
-                     (tree-delete left delete-key))
+                     (tree-delete left delete-key delete-value))
                (balance-left node flag))
               (t
                (setf (values (node-right node) flag)
-                     (tree-delete right delete-key))
+                     (tree-delete right delete-key delete-value))
                (balance-right node flag))))))
 
 (defun balance-left (node flag)
