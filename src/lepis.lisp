@@ -68,6 +68,37 @@
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; hash
+
+(def-read-op hget (db hash key &rest fields)
+  (let ((h (gethash key hash)))
+    (when h
+      (cond ((null fields)
+             h)
+            ((null (cdr fields))
+             (gethash (car fields) h))
+            (t
+             (loop with r = (make-hash-table :test 'equalp)
+                   for f in fields
+                   do (setf (gethash f r) (gethash f h))
+                   finally (return r)))))))
+
+(def-write-op hdel (db hash key field &rest more-fields)
+  (let ((h (gethash key hash)))
+    (if h
+        (loop for f in (cons field more-fields)
+              sum (if (remhash f h) 1 0))
+        0)))
+
+(def-write-op hset (db hash key field value &rest more-field-values)
+  (let ((h (gethash key hash)))
+    (unless h
+      (setf h (setf (gethash key hash) (make-hash-table :test 'equalp))))
+    (loop for (f v) on (cons field (cons value more-field-values)) by #'cddr
+          do (setf (gethash f h) v))))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; zset
 
 (def-write-op zadd (db hash key score member &rest more-score-members)

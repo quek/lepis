@@ -8,7 +8,11 @@
           #:clear-db
           #:!
           #:@
+          #:del
           #:inc
+          #:hdel
+          #:hget
+          #:hset
           #:zcard
           #:zadd
           #:zrang
