@@ -12,4 +12,5 @@
           #:zcard
           #:zadd
           #:zrang
-          #:zrang-by-score))
+          #:zrang-by-score
+          #:zrank))

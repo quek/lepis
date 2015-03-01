@@ -89,6 +89,9 @@
        (zset-card it)
        0))
 
+(def-read-op zrank (db hash key member)
+  (zset-rank (gethash key hash) member))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; dump & load
 (defun dump-db (db)

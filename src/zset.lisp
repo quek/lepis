@@ -5,7 +5,8 @@
            #:zset-add
            #:zset-rem
            #:zset-range
-           #:zset-range-by-score))
+           #:zset-range-by-score
+           #:zset-rank))
 
 (in-package :lepis.zset)
 
@@ -47,6 +48,10 @@
                 #'lepis.tree::node-value)
             (tree-search-range-by-score tree min max offset limit))))
 
+(defun zset-rank (zset key)
+  (let ((score (gethash key (zset-hash zset))))
+    (when score
+      (tree-rank (zset-tree zset) score key))))
 
 #+nil
 (let ((zset (make-zset)))

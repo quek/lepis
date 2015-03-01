@@ -2,6 +2,7 @@
   (:use :cl :anaphora)
   (:export #:tree-add
            #:tree-delete
+           #:tree-rank
            #:tree-size
            #:tree-search
            #:tree-search-range-by-rank
@@ -377,6 +378,29 @@
              (tree-size (node-right node))
              1)))
   (values node flag))
+
+(defun tree-rank (node key value)
+  (when node
+    (let ((node-key (node-key node)))
+      (cond ((= key node-key)
+             (let ((node-value (node-value node)))
+               (cond ((value= value node-value)
+                      (- (node-size node)
+                         (tree-size (node-right node))
+                         1))
+                     ((value< value node-value)
+                      #1=(tree-rank (node-left node) key value))
+                     (t
+                      #2=(+ (tree-size (node-left node))
+                            1
+                            (tree-rank (node-right node) key value))))))
+            ((< key node-key)
+             #1#)
+            (t
+             #2#)))))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun rbt-check (node)
   (cond ((null node)
