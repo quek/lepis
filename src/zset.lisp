@@ -10,7 +10,7 @@
 (in-package :lepis.zset)
 
 (defstruct zset
-  (hash (make-hash-table :test 'equal))
+  (hash (make-hash-table :test 'equalp))
   tree)
 
 (defun zset-card (zset)

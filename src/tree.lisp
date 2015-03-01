@@ -27,25 +27,13 @@
 (defun black-p (node)
   (not (red-p node)))
 
-(defgeneric value< (x y)
-  (:method (x y)
-    (< (sxhash x) (sxhash y)))
-  (:method ((x number) (y number))
-    (< x y))
-  (:method ((x string) (y string))
-    (string< x y))
-  (:method ((x symbol) (y symbol))
-    (string< (symbol-name x) (symbol-name y))))
+(declaim (inline value<))
+(defun value< (x y)
+  (string< (prin1-to-string x) (prin1-to-string y)))
 
-(defgeneric value= (x y)
-  (:method (x y)
-    (= (sxhash x) (sxhash y)))
-  (:method ((x number) (y number))
-    (= x y))
-  (:method ((x string) (y string))
-    (string= x y))
-  (:method ((x symbol) (y symbol))
-    (string= (symbol-name x) (symbol-name y))))
+(declaim (inline value=))
+(defun value= (x y)
+  (string= (prin1-to-string x) (prin1-to-string y)))
 
 
 (defstruct node
@@ -121,7 +109,8 @@
                    (cond ((value< value node-value)
                           (insert-left node key value))
                          ((value= value node-value)
-                          (setf (node-value node) value))
+                          (setf (node-value node) value)
+                          (values node t))
                          (t
                           (insert-right node key value)))))))))
 

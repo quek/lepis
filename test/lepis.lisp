@@ -37,7 +37,7 @@
     (clear-db db)
     (is (= 3 (zadd db :zset 1 'foo 2 'bar 30 'baz)))
     (is (= 3 (zcard db :zset)))
-    (is (= 1 (zadd db :zset 3 'baz  4 'foz)))
+    (is (= 1 (zadd db :zset 3 'baz 4 'foz)))
     (is (= 4 (zcard db :zset)))
     (is (equal '(foo bar baz foz) (zrang db :zset 0 nil)))
     (is (equal '((foo . 1) (bar . 2) (baz . 3) (foz . 4))
@@ -46,5 +46,17 @@
     (is (equal '((bar . 2) (baz . 3))
                (zrang-by-score db :zset most-negative-double-float most-positive-double-float
                                :with-scores t :offset 1 :limit 2)))))
+
+(def-test zset-struct ()
+  (with-db (db "/tmp/lepis/")
+    (clear-db db)
+    (let ((a (make-foo :a 1))
+          (b (make-foo :a 1))
+          (c (make-foo :a 2)))
+      (is (= 2 (zadd db :zset 1 a 2 b 3 c)))
+      (is (equalp `((,a . 2) (,c . 3)) (zrang db :zset 0 nil :with-scores t)))
+      (is (= 0 (zadd db :zset 20 a)))
+      (is (equalp `((,c . 3) (,a . 20)) (zrang db :zset 0 nil :with-scores t))))))
+
 
 (debug!)
