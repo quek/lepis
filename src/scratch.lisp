@@ -3,7 +3,8 @@
 
 (in-package :lepis.scratch)
 
-(defvar *db* (open-db "/tmp/lepis.scratch/"))
+(defvar *db* (open-db "/tmp/lepis.scratch/" :dump-threshold-second 5))
+;;(close-db *db*)
 
 (! *db* :hello :world)
 (! *db* 'hello 'world)

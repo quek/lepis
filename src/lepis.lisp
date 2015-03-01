@@ -11,20 +11,24 @@
 (defun db-dump-file (db)
   (merge-pathnames "dump.lisp" (db-data-dir db)))
 
-(defun open-db (data-dir)
+(defun open-db (data-dir &key (dump-threshold-second 60))
   (ensure-directories-exist data-dir)
-  (aprog1 (%open-db :data-dir data-dir)
+  (aprog1 (%open-db :data-dir data-dir :dump-threshold-second dump-threshold-second)
     (when (probe-file (db-dump-file it))
       (load-db it))
     (let ((thread (sb-thread:make-thread
-                   (lambda (db)
-                     (loop (sleep (db-dump-threshold-second db))
-                           (dump-db db)))
+                   #'dump-thread
                    :arguments (list it)
                    :name (format nil "dump-thread ~a" (db-dump-file it)))))
       (setf (db-dump-thread it) thread)
       (sb-ext:finalize it (lambda ()
                             (sb-thread:terminate-thread thread))))))
+
+(defun dump-thread (db)
+  (loop (sleep (db-dump-threshold-second db))
+        (when (plusp (db-update-count db))
+          (setf (db-update-count db) 0)
+          (ignore-errors (fork-and-dump db)))))
 
 (defun close-db (db)
   (sb-thread:terminate-thread (db-dump-thread db))
@@ -47,6 +51,7 @@
   `(defun ,op (,db ,@args)
      (let ((,hash (db-hash ,db)))
        (sb-ext:with-locked-hash-table (,hash)
+         (incf (db-update-count ,db))
          ,@body))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -96,11 +101,22 @@
     (with-open-file (out file :direction :output :if-exists :overwrite)
       (with-standard-io-syntax
         (sb-ext:with-locked-hash-table ((db-hash db))
+          (setf (db-update-count db) 0)
           (maphash (lambda (key value)
                      (print key out)
                      (print value out))
-                   (db-hash db))))
+                   (db-hash db)))
+        (multiple-value-bind (s mi h d m y) (decode-universal-time (get-universal-time))
+          (format out "~%;; ~d-~2,'0d-~2,'0d ~2,'0d:~2,'0d:~2,'0d" y m d h mi s)))
       (rename-file file (db-dump-file db)))))
+
+(defun fork-and-dump (db)
+  (let ((pid (sb-posix:posix-fork)))
+    (if (zerop pid)
+        (progn
+          (dump-db db)
+          (sb-posix:_exit 0))
+        (sb-posix:waitpid pid 0))))
 
 (defun load-db (db)
   (with-open-file (in (db-dump-file db))
