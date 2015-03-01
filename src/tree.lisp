@@ -385,9 +385,7 @@
       (cond ((= key node-key)
              (let ((node-value (node-value node)))
                (cond ((value= value node-value)
-                      (- (node-size node)
-                         (tree-size (node-right node))
-                         1))
+                      (tree-size (node-left node)))
                      ((value< value node-value)
                       #1=(tree-rank (node-left node) key value))
                      (t
