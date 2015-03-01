@@ -3,6 +3,7 @@
   (:export #:make-zset
            #:zset-card
            #:zset-add
+           #:zset-delete
            #:zset-rem
            #:zset-range
            #:zset-range-by-score
@@ -52,6 +53,14 @@
   (let ((score (gethash key (zset-hash zset))))
     (when score
       (tree-rank (zset-tree zset) score key))))
+
+(defun zset-delete (zset &rest keys)
+  (loop with hash = (zset-hash zset)
+        with tree = (zset-tree zset)
+        for x in keys
+        for score = (gethash x hash)
+        if score
+          sum (prog1 1 (tree-delete tree score x))))
 
 #+nil
 (let ((zset (make-zset)))

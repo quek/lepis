@@ -13,4 +13,5 @@
           #:zadd
           #:zrang
           #:zrang-by-score
-          #:zrank))
+          #:zrank
+          #:zrem))

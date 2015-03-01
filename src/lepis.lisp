@@ -92,6 +92,12 @@
 (def-read-op zrank (db hash key member)
   (zset-rank (gethash key hash) member))
 
+(def-write-op zrem (db hash key member &rest more-members)
+  (let ((zset (gethash key hash)))
+    (if zset
+        (apply #'zset-delete zset member more-members)
+        0)))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; dump & load
 (defun dump-db (db)

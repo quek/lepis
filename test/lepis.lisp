@@ -21,7 +21,7 @@
     (is (string= "world" (@ db "hello")))
     (is (equalp (make-foo :a 1 :b 'xxx) (@ db :foo1)))))
 
-(def-test inc ()
+(def-test inc-thread ()
   (with-db (db "/tmp/lepis/")
     (clear-db db)
     (mapc #'sb-thread:join-thread
@@ -32,7 +32,7 @@
                                  do (inc db :inc))))))
     (is (= 10000 (@ db :inc)))))
 
-(def-test zset ()
+(def-test zset-basic ()
   (with-db (db "/tmp/lepis/")
     (clear-db db)
     (is (= 3 (zadd db :zset 1 'foo 2 'bar 30 'baz)))
@@ -43,12 +43,13 @@
     (is (= 1 (zadd db :zset 3 'baz 4 'foz)))
     (is (= 4 (zcard db :zset)))
     (is (equal '(foo bar baz foz) (zrang db :zset 0 nil)))
-    (is (equal '((foo . 1) (bar . 2) (baz . 3) (foz . 4))
-               (zrang db :zset 0 nil :with-scores t)))
+    (is (equal '((bar . 2) (baz . 3)) (zrang db :zset 1 2 :with-scores t)))
     (is (equal '(bar baz) (zrang-by-score db :zset 2 3)))
     (is (equal '((bar . 2) (baz . 3))
                (zrang-by-score db :zset most-negative-double-float most-positive-double-float
-                               :with-scores t :offset 1 :limit 2)))))
+                               :with-scores t :offset 1 :limit 2)))
+    (is (= 2 (zrem db :zset 'bar 'foz)))
+    (is (equal '(foo baz) (zrang db :zset 0 nil)))))
 
 (def-test zset-struct ()
   (with-db (db "/tmp/lepis/")
