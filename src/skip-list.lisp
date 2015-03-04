@@ -1,8 +1,11 @@
-(in-package :lepis)
+(defpackage :lepis.skip-list
+  (:use :cl :anaphora)
+  (:export #:make-skip-list))
 
-(defstruct skip-list-node
-  (key 0.0d0 :type double-float)
-  (val nil)
+(in-package :lepis.skip-list)
+
+(defstruct node
+  (value nil)
   (next #() :type simple-vector))
 
 (defstruct (skip-list (:constructor %make-skip-list))
@@ -14,23 +17,42 @@
   (let ((max-level (ceiling (log expected-record-count (/ 1 p)))))
    (%make-skip-list :level-p p
                     :max-level max-level
-                    :head (make-skip-list-node :next (make-array max-level :initial-element nil)))))
+                    :head (make-node :next (make-array max-level :initial-element nil)))))
 
-(defun %skip-list-search (skip-list key)
-  #+nil
-  (declare (optimize (speed 3) (safety 0))
-           (double-float key))
+(declaim (inline value<))
+(defgeneric value< (x y)
+  (:method ((x string) (y string))
+    (string< x y))
+  (:method ((x number) (y number))
+    (< x y))
+  (:method ((x string) (y number))
+    t)
+  (:method ((x number) (y string))
+    nil)
+  (:method ((x string) y)
+    t)
+  (:method (x (y string))
+    nil)
+  (:method ((x number) y)
+    t)
+  (:method (x (y number))
+    nil)
+  (:method (x y)
+    (string< (prin1-to-string x) (prin1-to-string y))))
+
+(defun %skip-list-search (skip-list value)
+  (declare (optimize (speed 3) (safety 0)))
   (loop with max-level fixnum = (skip-list-max-level skip-list)
         with level fixnum = (1- max-level)
         with node-1 = (skip-list-head skip-list)
         with prevs = (make-array max-level :initial-element nil)
-        for node = (aref (skip-list-node-next node-1) level)
-          then (aref (skip-list-node-next node-1) level)
+        for node = (aref (node-next node-1) level)
+          then (aref (node-next node-1) level)
         if node
-          do (let ((node-key (skip-list-node-key node)))
-               (cond ((< node-key key)
+          do (let ((node-value (node-value node)))
+               (cond ((value< node-value value)
                       (setf node-1 node))
-                     ((< key node-key)
+                     ((value< value node-value)
                       #1=(progn
                            (setf (aref prevs level) node-1)
                            (when (= -1 (decf level))
@@ -41,10 +63,10 @@
         else
           do #1#))
 
-(defun skip-list-search (skip-list key)
-  (let ((node (%skip-list-search skip-list key)))
+(defun skip-list-search (skip-list value)
+  (let ((node (%skip-list-search skip-list value)))
     (if node
-        (values (skip-list-node-val node) t)
+        (values (node-value node) t)
         (values nil nil))))
 
 (defun compute-level-for-add (skip-list)
@@ -56,24 +78,23 @@
           if (< p (random 1.0))
             do (return i))))
 
-(defun %skip-list-add (skip-list prevs key val)
+(defun %skip-list-add (skip-list prevs value)
   (let* ((top-level (compute-level-for-add skip-list))
-         (new-node (make-skip-list-node
-                    :key key :val val
-                    :next (make-array top-level
-                                      :initial-element nil))))
+         (new-node (make-node :value value
+                              :next (make-array top-level :initial-element nil))))
     (loop for level fixnum from 0 below top-level
           for prev across (the simple-vector prevs)
-          do (shiftf (aref (the simple-vector (skip-list-node-next new-node)) level)
-                     (aref (the simple-vector (skip-list-node-next prev)) level)
+          do (shiftf (aref (the simple-vector (node-next new-node)) level)
+                     (aref (the simple-vector (node-next prev)) level)
                      new-node))))
 
-(defun skip-list-add (skip-list key val)
-  (let ((key (coerce key 'double-float)))
-    (multiple-value-bind (node prevs) (%skip-list-search skip-list key)
-      (if node
-          (setf (skip-list-node-val node) val)
-          (%skip-list-add skip-list prevs key val)))))
+(defun skip-list-add (skip-list value)
+  (multiple-value-bind (node prevs) (%skip-list-search skip-list value)
+    (if node
+        nil
+        (progn
+          (%skip-list-add skip-list prevs value)
+          t))))
 
 ;;     3     6
 ;; 1   3   5 6
@@ -83,14 +104,14 @@
         for prev across prevs
         if prev
           do (loop for i from level downto 0
-                   do (loop until (eq node (aref (skip-list-node-next prev) i))
-                            do (setf prev (aref (skip-list-node-next prev) i))
-                            finally (setf (aref (skip-list-node-next prev) i)
-                                          (aref (skip-list-node-next node) i))))
+                   do (loop until (eq node (aref (node-next prev) i))
+                            do (setf prev (aref (node-next prev) i))
+                            finally (setf (aref (node-next prev) i)
+                                          (aref (node-next node) i))))
              (return t)))
 
-(defun skip-list-remove (skip-list key)
-  (multiple-value-bind (node prevs) (%skip-list-search skip-list key)
+(defun skip-list-remove (skip-list value)
+  (multiple-value-bind (node prevs) (%skip-list-search skip-list value)
     (when node
       (%skip-list-remove node prevs)
       node)))
@@ -98,23 +119,22 @@
 
 
 (defun print-skip-list (skip-list &optional (stream *standard-output*))
-  (loop for level from (1- (skip-list-max-level skip-list)) down to 0
+  (loop for level from (1- (skip-list-max-level skip-list)) downto 0
         do (format stream "~&~d ~d" level
-                   (loop for node = (aref (skip-list-node-next (skip-list-head skip-list))
+                   (loop for node = (aref (node-next (skip-list-head skip-list))
                                           level)
-                           then (aref (skip-list-node-next node) level)
+                           then (aref (node-next node) level)
                          while node
                          sum 1)))
-  
   #+nil
   (loop with max-level fixnum = (skip-list-max-level skip-list)
         with level fixnum = (1- max-level)
           initially (format stream "~&~a " level)
-        for node = (aref (skip-list-node-next (skip-list-head skip-list)) level)
-          then (aref (skip-list-node-next node) level)
+        for node = (aref (node-next (skip-list-head skip-list)) level)
+          then (aref (node-next node) level)
         if node
-          do (let ((key (skip-list-node-key node))
-                   (value (skip-list-node-val node)))
+          do (let ((key (node-key node))
+                   (value (node-val node)))
                (format stream "~a:~a " key value))
         else
           do (if (= -1 (decf level))
@@ -125,48 +145,19 @@
 
 (defun %%%skip-list-test ()
   (let ((s (make-skip-list)))
-    (skip-list-add s 1 "a")
-    (skip-list-add s 3 "c")
-    (skip-list-add s 4 "d")
-    (skip-list-add s 2 "b")
-    (assert (string= "b" (skip-list-search s 2)))
-    (skip-list-remove s 2)
-    (assert (null (skip-list-search s 2)))
+    (skip-list-add s "a")
+    (skip-list-add s "c")
+    (skip-list-add s "d")
+    (skip-list-add s "b")
+    (assert (string= "b" (skip-list-search s "b")))
+    (skip-list-remove s "b")
+    (assert (null (skip-list-search s "b")))
     (loop repeat 1000000
-          for key = (random 10000000000000)
-          do (skip-list-add s key key))
+          for value = (random 100000000000)
+          do (skip-list-add s value))
     (print-skip-list s)))
 
 (aprog1 (make-skip-list)
-  (skip-list-add it 3 3)
-  (skip-list-add it 1 1)
-  (skip-list-add it 2 2))
-;;⇒ #S(SKIP-LIST
-;;      :LEVEL-P 0.25
-;;      :MAX-LEVEL 32
-;;      :HEAD #S(SKIP-LIST-NODE
-;;               :KEY 0.0d0
-;;               :VAL NIL
-;;               :NEXT #(#S(SKIP-LIST-NODE
-;;                          :KEY 1.0d0
-;;                          :VAL 1
-;;                          :NEXT #(#S(SKIP-LIST-NODE
-;;                                     :KEY 2.0d0
-;;                                     :VAL 2
-;;                                     :NEXT #(#S(SKIP-LIST-NODE
-;;                                                :KEY 3.0d0
-;;                                                :VAL 3
-;;                                                :NEXT #(NIL))
-;;                                             NIL))))
-;;                       #S(SKIP-LIST-NODE
-;;                          :KEY 2.0d0
-;;                          :VAL 2
-;;                          :NEXT #(#S(SKIP-LIST-NODE
-;;                                     :KEY 3.0d0
-;;                                     :VAL 3
-;;                                     :NEXT #(NIL))
-;;                                  NIL))
-;;                       NIL NIL NIL NIL NIL NIL NIL NIL NIL NIL NIL NIL NIL NIL NIL
-;;                       NIL NIL NIL NIL NIL NIL NIL NIL NIL NIL NIL NIL NIL NIL
-;;                       NIL)))
-
+  (skip-list-add it 3)
+  (skip-list-add it 1)
+  (skip-list-add it 2))
