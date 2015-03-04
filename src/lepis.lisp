@@ -87,7 +87,7 @@
   (let ((h (gethash key hash)))
     (if h
         (loop for f in (cons field more-fields)
-              sum (if (remhash f h) 1 0))
+              count (remhash f h))
         0)))
 
 (def-write-op hset (db hash key field value &rest more-field-values)
@@ -127,6 +127,35 @@
   (let ((zset (gethash key hash)))
     (if zset
         (apply #'zset-delete zset member more-members)
+        0)))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; set
+
+(def-write-op sadd (db hash key value &rest more-values)
+  (let ((set (gethash key hash)))
+    (unless set
+      (setf set (setf (gethash key hash) (make-set))))
+    (loop for x in (cons value more-values)
+          count (set-add set x))))
+
+(def-write-op srem (db hash key value &rest more-values)
+  (let ((set (gethash key hash)))
+    (if set
+        (loop for x in (cons value more-values)
+              count (set-remove set x))
+        0)))
+
+(def-read-op scard (db hash key)
+  (let ((set (gethash key hash)))
+    (if set
+        (let ((count 0))
+          (map-set (lambda (value)
+                     (declare (ignore value))
+                     (incf count))
+                   set)
+          count)
         0)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

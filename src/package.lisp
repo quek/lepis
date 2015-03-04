@@ -1,5 +1,5 @@
 (defpackage :lepis
- (:use :cl :anaphora :lepis.zset)
+ (:use :cl :anaphora :lepis.zset :lepis.set)
  (:export #:open-db
           #:close-db
           #:with-db
@@ -13,6 +13,12 @@
           #:hdel
           #:hget
           #:hset
+          #:sadd
+          #:scard
+          #:srem
+          #:sinter
+          #:sunino
+          #:sdiff
           #:zcard
           #:zadd
           #:zrang

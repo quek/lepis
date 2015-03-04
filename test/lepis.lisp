@@ -77,5 +77,14 @@
       (is (= 0 (zadd db :zset 20 a)))
       (is (equalp `((,c . 3) (,a . 20)) (zrang db :zset 0 nil :with-scores t))))))
 
+(def-test set-basic ()
+  (with-db (db "/tmp/lepis/")
+    (clear-db db)
+    (is (= 1 (sadd db :set "a")))
+    (is (= 2 (sadd db :set "a" "b" "c")))
+    (is (= 3 (scard db :set)))
+    (is (= 1 (srem db :set "b" "d")))
+    (is (= 2 (scard db :set)))))
+
 
 (debug!)

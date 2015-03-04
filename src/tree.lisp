@@ -1,5 +1,5 @@
 (defpackage :lepis.tree
-  (:use :cl :anaphora)
+  (:use :cl :anaphora :lepis.util)
   (:export #:tree-add
            #:tree-delete
            #:tree-rank
@@ -27,44 +27,6 @@
 (declaim (inline black-p))
 (defun black-p (node)
   (not (red-p node)))
-
-(declaim (inline value<))
-(defgeneric value< (x y)
-  (:method ((x string) (y string))
-    (string< x y))
-  (:method ((x number) (y number))
-    (< x y))
-  (:method ((x string) (y number))
-    t)
-  (:method ((x number) (y string))
-    nil)
-  (:method ((x string) y)
-    t)
-  (:method (x (y string))
-    nil)
-  (:method ((x number) y)
-    t)
-  (:method (x (y number))
-    nil)
-  (:method (x y)
-    (string< (prin1-to-string x) (prin1-to-string y))))
-
-(declaim (inline value=))
-(defgeneric value= (x y)
-  (:method ((x string) (y string))
-    (string= x y))
-  (:method ((x number) (y number))
-    (= x y))
-  (:method ((x string) y)
-    nil)
-  (:method (x (y string))
-    nil)
-  (:method ((x number) y)
-    nil)
-  (:method (x (y number))
-    nil)
-  (:method (x y)
-    (string= (prin1-to-string x) (prin1-to-string y))))
 
 
 (defstruct node

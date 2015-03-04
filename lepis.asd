@@ -3,8 +3,11 @@
   :serial t
   :components ((:module "src"
                 :serial t
-                :components ((:file "tree")
+                :components ((:file "util")
+                             (:file "tree")
+                             (:file "skip-list")
                              (:file "zset")
+                             (:file "set")
                              (:file "package")
                              (:file "lepis"))))
   :depends-on (anaphora))

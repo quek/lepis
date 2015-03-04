@@ -1,6 +1,10 @@
 (defpackage :lepis.skip-list
-  (:use :cl :anaphora)
-  (:export #:make-skip-list))
+  (:use :cl :anaphora :lepis.util)
+  (:export #:make-skip-list
+           #:skip-list-add
+           #:skip-list-search
+           #:skip-list-remove
+           #:map-skip-list))
 
 (in-package :lepis.skip-list)
 
@@ -18,27 +22,6 @@
    (%make-skip-list :level-p p
                     :max-level max-level
                     :head (make-node :next (make-array max-level :initial-element nil)))))
-
-(declaim (inline value<))
-(defgeneric value< (x y)
-  (:method ((x string) (y string))
-    (string< x y))
-  (:method ((x number) (y number))
-    (< x y))
-  (:method ((x string) (y number))
-    t)
-  (:method ((x number) (y string))
-    nil)
-  (:method ((x string) y)
-    t)
-  (:method (x (y string))
-    nil)
-  (:method ((x number) y)
-    t)
-  (:method (x (y number))
-    nil)
-  (:method (x y)
-    (string< (prin1-to-string x) (prin1-to-string y))))
 
 (defun %skip-list-search (skip-list value)
   (declare (optimize (speed 3) (safety 0)))
@@ -116,6 +99,12 @@
       (%skip-list-remove node prevs)
       node)))
 
+
+(defun map-skip-list (function skip-list)
+  (loop for node = (aref (node-next (skip-list-head skip-list)) 0)
+          then (aref (node-next node) 0)
+        while node
+        do (funcall function (node-value node))))
 
 
 (defun print-skip-list (skip-list &optional (stream *standard-output*))
