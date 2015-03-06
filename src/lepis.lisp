@@ -158,6 +158,18 @@
           count)
         0)))
 
+(macrolet ((def-s-op (name op)
+             `(def-read-op ,name (db hash key &rest keys)
+                (let ((set (gethash key hash))
+                      (sets (loop for key in keys
+                                  for set = (gethash key hash)
+                                  if set collect set)))
+                  (apply (function ,op) set sets)))))
+  (def-s-op sdiff set-diff)
+  (def-s-op sinter set-inter)
+  (def-s-op sunion set-union))
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; dump & load
 (defun dump-db (db)

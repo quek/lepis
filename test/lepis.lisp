@@ -84,7 +84,12 @@
     (is (= 2 (sadd db :set "a" "b" "c")))
     (is (= 3 (scard db :set)))
     (is (= 1 (srem db :set "b" "d")))
-    (is (= 2 (scard db :set)))))
+    (is (= 2 (scard db :set)))
+    (is (= 2 (sadd db :set2 "c" "d")))
+    (is (equal '("a") (sdiff db :set :set2)))
+    (is (equal '("c") (sinter db :set :set2)))
+    (is (equal '("a" "c" "d") (sunion db :set :set2)))))
+
 
 
 (debug!)

@@ -14,6 +14,13 @@
 (defun make-set ()
   (make-skip-list))
 
+(defun as-list (set)
+  (let (list)
+    (map-skip-list (lambda (x)
+                     (push x list))
+                   set)
+    (nreverse list)))
+
 (defun set-add (set x)
   (skip-list-add set x))
 
@@ -28,22 +35,24 @@
     (loop for x in sets
           do (map-skip-list (lambda (value) (set-add set value))
                             x))
-    set))
+    (as-list set)))
 
 (defun set-diff (set &rest sets)
-  (let ((set (set-union set)))          ;TODO 非効率
-    (loop for x in sets
-          do (map-skip-list (lambda (value) (set-remove set value))
-                            (apply #'set-union sets)))
-    set))
+  (let (result)
+    (map-skip-list (lambda (value)
+                     (when (loop for x in sets
+                                 never (skip-list-search x value))
+                       (push value result)))
+                   set)
+    result))
 
 (defun set-inter (set &rest sets)
-  (let ((result-set (make-set)))
+  (let (result)
     (map-skip-list (lambda (value)
                      (when (every (lambda (set) (skip-list-search set value)) sets)
-                       (set-add result-set value)))
+                       (push value result)))
                    set)
-    result-set))
+    result))
 
 (defun map-set (function set)
   (map-skip-list function set))

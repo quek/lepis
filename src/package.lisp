@@ -17,7 +17,7 @@
           #:scard
           #:srem
           #:sinter
-          #:sunino
+          #:sunion
           #:sdiff
           #:zcard
           #:zadd
