@@ -9,6 +9,7 @@
                              (:file "zset")
                              (:file "set")
                              (:file "package")
+                             (:file "dump")
                              (:file "lepis"))))
   :depends-on (anaphora))
 

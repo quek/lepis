@@ -1,6 +1,7 @@
 (defpackage :lepis.zset
   (:use :cl :lepis.tree)
   (:export #:make-zset
+           #:zset-p
            #:zset-card
            #:zset-add
            #:zset-delete

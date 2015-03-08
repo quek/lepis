@@ -1,5 +1,5 @@
 (defpackage :lepis.scratch
-  (:use :cl :lepis))
+  (:use :cl :lepis :anaphora))
 
 (in-package :lepis.scratch)
 
@@ -29,3 +29,13 @@
 ;;⇒ 11
 (inc *db* :inc -1)
 ;;⇒ 10
+
+(zadd *db* :zset 1 :a 2 :b)
+;;⇒ 2
+(zrang *db* :zset 0 nil :with-scores t)
+;;⇒ ((:A . 1) (:B . 2))
+(zrang *db* :zset 0 nil)
+;;⇒ (:A :B)
+
+
+

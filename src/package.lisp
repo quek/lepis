@@ -19,6 +19,7 @@
           #:sinter
           #:sunion
           #:sdiff
+          #:smembers
           #:zcard
           #:zadd
           #:zrang

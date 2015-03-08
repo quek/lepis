@@ -1,6 +1,7 @@
 (defpackage :lepis.set
   (:use :cl :anaphora :lepis.skip-list)
   (:export #:make-set
+           #:set-p
            #:set-add
            #:set-remove
            #:set-member-p
@@ -13,6 +14,10 @@
 
 (defun make-set ()
   (make-skip-list))
+
+(declaim (inline set-p))
+(defun set-p (x)
+  (lepis.skip-list::skip-list-p x))
 
 (defun as-list (set)
   (let (list)

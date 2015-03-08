@@ -109,11 +109,13 @@
 
 (def-read-op zrang (db hash key start stop &key with-scores)
   (let ((zset (gethash key hash)))
-    (zset-range zset start stop with-scores)))
+    (when zset
+      (zset-range zset start stop with-scores))))
 
 (def-read-op zrang-by-score (db hash key min max &key with-scores (offset 0) limit)
   (let ((zset (gethash key hash)))
-    (zset-range-by-score zset min max with-scores offset limit)))
+    (when zset
+      (zset-range-by-score zset min max with-scores offset limit))))
 
 (def-read-op zcard (db hash key)
   (aif (gethash key hash)
@@ -169,6 +171,11 @@
   (def-s-op sinter set-inter)
   (def-s-op sunion set-union))
 
+(def-read-op smembers (db hash key)
+  (let ((set (gethash key hash)))
+    (when set
+      (lepis.set::as-list set))))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; dump & load
@@ -183,10 +190,7 @@
       (with-standard-io-syntax
         (sb-ext:with-locked-hash-table ((db-hash db))
           (setf (db-update-count db) 0)
-          (maphash (lambda (key value)
-                     (print key out)
-                     (print value out))
-                   (db-hash db)))
+          (dump-db-hash (db-hash db) out))
         (multiple-value-bind (s mi h d m y) (decode-universal-time (get-universal-time))
           (format out "~%;; ~d-~2,'0d-~2,'0d ~2,'0d:~2,'0d:~2,'0d" y m d h mi s)))
       (rename-file file (db-dump-file db)))))
@@ -204,8 +208,5 @@
     (with-standard-io-syntax
       (let ((hash (db-hash db)))
         (clrhash hash)
-        (loop for key = (read in nil in)
-              for value = (read in nil in)
-              while (not (eq in key))
-              do (setf (gethash key hash) value))))))
+        (load-db-hash hash in)))))
 
