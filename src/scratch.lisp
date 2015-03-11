@@ -37,5 +37,14 @@
 (zrang *db* :zset 0 nil)
 ;;⇒ (:A :B)
 
+(defglobal *x* 'hello)
+;;⇒ *X*
+
+(sb-thread:make-thread (lambda ()
+                         (print *x*)))
+;;⇒ #<SB-THREAD:THREAD FINISHED values: HELLO {100D4BA9E3}>
+
+
+
 
 

@@ -100,7 +100,6 @@
       (! db :list2 list)
       (! db :foo2 foo)
       (zadd db :zset 1 list 2 foo)
-      (print (zrang db :zset 0 nil))
       (sadd db :set foo list)))
   (with-db (db "/tmp/lepis/")
     (let ((list (@ db :list1))
@@ -115,5 +114,18 @@
       (let ((xs (smembers db :set)))
         (is (or (eq list (car xs)) (eq list (cadr xs))))
         (is (or (eq foo (car xs)) (eq foo (cadr xs))))))))
+
+(def-test open-by-many-threads ()
+  (with-db (db "/tmp/lepis/")
+    (clear-db db))
+  (mapc #'sb-thread:join-thread
+        (loop for i below 10
+              collect (sb-thread:make-thread
+                       (lambda ()
+                         (loop for i below 100 do
+                           (with-db (db "/tmp/lepis/")
+                             (inc db :foo)))))))
+  (with-db (db "/tmp/lepis/")
+    (is (= 1000 (@ db :foo)))))
 
 (debug!)

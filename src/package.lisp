@@ -1,6 +1,7 @@
 (defpackage :lepis
  (:use :cl :anaphora :lepis.zset :lepis.set)
- (:export #:open-db
+ (:export #:*db*
+          #:open-db
           #:close-db
           #:with-db
           #:load-db
