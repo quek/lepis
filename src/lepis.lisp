@@ -60,43 +60,43 @@
           t)
         nil)))
 
-(defmacro with-db ((var data-dir) &body body)
-  `(let ((,var (open-db ,data-dir)))
+(defmacro with-db ((data-dir) &body body)
+  `(let ((*db* (open-db ,data-dir)))
      (unwind-protect (progn ,@body)
-       (close-db ,var))))
+       (close-db))))
 
-(defun clear-db (db)
+(defun clear-db (&optional (db *db*))
   (clrhash (db-hash db)))
 
-(defmacro def-read-op (op (db hash &rest args) &body body)
-  `(defun ,op (,db ,@args)
-     (let ((,hash (db-hash ,db)))
+(defmacro def-read-op (op (hash &rest args) &body body)
+  `(defun ,op ,args
+     (let ((,hash (db-hash *db*)))
        ,@body)))
 
-(defmacro def-write-op (op (db hash &rest args) &body body)
-  `(defun ,op (,db ,@args)
-     (let ((,hash (db-hash ,db)))
+(defmacro def-write-op (op (hash &rest args) &body body)
+  `(defun ,op ,args
+     (let ((,hash (db-hash *db*)))
        (sb-ext:with-locked-hash-table (,hash)
-         (incf (db-update-count ,db))
+         (incf (db-update-count *db*))
          ,@body))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; object
 
-(def-read-op @ (db hash key &optional default)
+(def-read-op @ (hash key &optional default)
   (gethash key hash default))
 
-(def-write-op ! (db hash key value)
+(def-write-op ! (hash key value)
   (setf (gethash key hash) value))
 
-(def-write-op inc (db hash key &optional (delta 1))
+(def-write-op inc (hash key &optional (delta 1))
   (incf (gethash key hash 0) delta))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; hash
 
-(def-read-op hget (db hash key &rest fields)
+(def-read-op hget (hash key &rest fields)
   (let ((h (gethash key hash)))
     (when h
       (cond ((null fields)
@@ -109,14 +109,14 @@
                    do (setf (gethash f r) (gethash f h))
                    finally (return r)))))))
 
-(def-write-op hdel (db hash key field &rest more-fields)
+(def-write-op hdel (hash key field &rest more-fields)
   (let ((h (gethash key hash)))
     (if h
         (loop for f in (cons field more-fields)
               count (remhash f h))
         0)))
 
-(def-write-op hset (db hash key field value &rest more-field-values)
+(def-write-op hset (hash key field value &rest more-field-values)
   (let ((h (gethash key hash)))
     (unless h
       (setf h (setf (gethash key hash) (make-hash-table :test 'equalp))))
@@ -127,31 +127,31 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; zset
 
-(def-write-op zadd (db hash key score member &rest more-score-members)
+(def-write-op zadd (hash key score member &rest more-score-members)
   (let ((zset (gethash key hash)))
     (unless zset
       (setf zset (setf (gethash key hash) (make-zset))))
     (apply #'zset-add zset score member more-score-members)))
 
-(def-read-op zrang (db hash key start stop &key with-scores)
+(def-read-op zrang (hash key start stop &key with-scores)
   (let ((zset (gethash key hash)))
     (when zset
       (zset-range zset start stop with-scores))))
 
-(def-read-op zrang-by-score (db hash key min max &key with-scores (offset 0) limit)
+(def-read-op zrang-by-score (hash key min max &key with-scores (offset 0) limit)
   (let ((zset (gethash key hash)))
     (when zset
       (zset-range-by-score zset min max with-scores offset limit))))
 
-(def-read-op zcard (db hash key)
+(def-read-op zcard (hash key)
   (aif (gethash key hash)
        (zset-card it)
        0))
 
-(def-read-op zrank (db hash key member)
+(def-read-op zrank (hash key member)
   (zset-rank (gethash key hash) member))
 
-(def-write-op zrem (db hash key member &rest more-members)
+(def-write-op zrem (hash key member &rest more-members)
   (let ((zset (gethash key hash)))
     (if zset
         (apply #'zset-delete zset member more-members)
@@ -161,21 +161,21 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; set
 
-(def-write-op sadd (db hash key value &rest more-values)
+(def-write-op sadd (hash key value &rest more-values)
   (let ((set (gethash key hash)))
     (unless set
       (setf set (setf (gethash key hash) (make-set))))
     (loop for x in (cons value more-values)
           count (set-add set x))))
 
-(def-write-op srem (db hash key value &rest more-values)
+(def-write-op srem (hash key value &rest more-values)
   (let ((set (gethash key hash)))
     (if set
         (loop for x in (cons value more-values)
               count (set-remove set x))
         0)))
 
-(def-read-op scard (db hash key)
+(def-read-op scard (hash key)
   (let ((set (gethash key hash)))
     (if set
         (let ((count 0))
@@ -187,7 +187,7 @@
         0)))
 
 (macrolet ((def-s-op (name op)
-             `(def-read-op ,name (db hash key &rest keys)
+             `(def-read-op ,name (hash key &rest keys)
                 (let ((set (gethash key hash))
                       (sets (loop for key in keys
                                   for set = (gethash key hash)
@@ -197,7 +197,7 @@
   (def-s-op sinter set-inter)
   (def-s-op sunion set-union))
 
-(def-read-op smembers (db hash key)
+(def-read-op smembers (hash key)
   (let ((set (gethash key hash)))
     (when set
       (lepis.set::as-list set))))
