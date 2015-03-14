@@ -11,30 +11,37 @@
   (last-dumped-time (get-universal-time))
   data-dir
   dump-thread
-  (open-count 1 :type fixnum))
+  (open-count 1 :type fixnum)
+  lock-fd)
 
 (defun db-dump-file (db)
   (merge-pathnames "dump.lisp" (db-data-dir db)))
 
 (defun open-db (data-dir &key (dump-threshold-second 60))
   (sb-ext:with-locked-hash-table (*db-table*)
-    (sif (gethash data-dir *db-table*)
-         (progn
-           (incf (db-open-count it))
-           it)
-         (prog2
-             (ensure-directories-exist data-dir)
-             (setf it (%open-db :data-dir data-dir
-                                :dump-threshold-second dump-threshold-second))
-           (when (probe-file (db-dump-file it))
-             (load-db it))
-           (let ((thread (sb-thread:make-thread
-                          #'dump-thread
-                          :arguments (list it)
-                          :name (format nil "dump-thread ~a" (db-dump-file it)))))
-             (setf (db-dump-thread it) thread)
-             (sb-ext:finalize it (lambda ()
-                                   (sb-thread:terminate-thread thread))))))))
+    (let ((db (gethash data-dir *db-table*)))
+      (if db
+          (progn
+            (incf (db-open-count db))
+            db)
+          (progn
+            (ensure-directories-exist data-dir)
+            (let ((fd (lock-file (merge-pathnames "lock" data-dir))))
+              (unless fd
+                (error "Db file is opened by other process."))
+              (setf db (%open-db :data-dir data-dir
+                                 :dump-threshold-second dump-threshold-second
+                                 :lock-fd fd))
+              (setf (gethash data-dir *db-table*) db)
+              (when (probe-file (db-dump-file db))
+                (load-db db))
+              (let ((thread (sb-thread:make-thread
+                             #'dump-thread
+                             :arguments (list db)
+                             :name (format nil "dump-thread ~a" (db-dump-file db)))))
+                (setf (db-dump-thread db) thread)
+                (sb-ext:finalize db (lambda ()
+                                      (sb-thread:terminate-thread thread))))))))))
 
 (defun dump-thread (db)
   (loop (sleep (db-dump-threshold-second db))
@@ -49,6 +56,7 @@
           (remhash (db-data-dir db) *db-table*)
           (sb-thread:terminate-thread (db-dump-thread db))
           (dump-db db)
+          (unlock-file (db-lock-fd db))
           t)
         nil)))
 

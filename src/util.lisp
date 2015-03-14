@@ -1,7 +1,9 @@
 (defpackage :lepis.util
   (:use :cl :anaphora)
   (:export #:value<
-           #:value=))
+           #:value=
+           #:lock-file
+           #:unlock-file))
 
 (in-package :lepis.util)
 
@@ -42,3 +44,30 @@
     nil)
   (:method (x y)
     (string= (prin1-to-string x) (prin1-to-string y))))
+
+(defun lock-file (file)
+  (handler-case
+      (let ((fd (sb-posix:open file (logior sb-posix:o-wronly sb-posix:o-creat) #8r666)))
+        (sb-posix:fcntl fd sb-posix:f-setlk (make-instance 'sb-posix:flock
+                                                           :type sb-posix:f-wrlck
+                                                           :whence sb-posix:seek-set
+                                                           :start 0
+                                                           :len 0))
+        fd)
+    (sb-posix:syscall-error (error)
+      (describe error)
+      nil)))
+
+(defun unlock-file (fd)
+  (handler-case
+      (progn
+        (sb-posix:fcntl fd sb-posix:f-setlk (make-instance 'sb-posix:flock
+                                                           :type sb-posix:f-unlck
+                                                           :whence sb-posix:seek-set
+                                                           :start 0
+                                                           :len 0))
+        (sb-posix:close fd)
+        t)
+    (sb-posix:syscall-error (error)
+      (describe error)
+      nil)))
