@@ -206,11 +206,11 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; dump & load
 (defun dump-db (db)
-  (let ((file (multiple-value-bind (_ file)
+  (let ((file (multiple-value-bind (fd file)
                   (sb-posix:mkstemp
                    (namestring
                     (merge-pathnames "dump-temp-XXXXXX" (db-data-dir db))))
-                (declare (ignore _))
+                (sb-posix:close fd)
                 file)))
     (with-open-file (out file :direction :output :if-exists :overwrite)
       (with-standard-io-syntax
@@ -218,8 +218,8 @@
           (setf (db-update-count db) 0)
           (dump-db-hash (db-hash db) out))
         (multiple-value-bind (s mi h d m y) (decode-universal-time (get-universal-time))
-          (format out "~%;; ~d-~2,'0d-~2,'0d ~2,'0d:~2,'0d:~2,'0d" y m d h mi s)))
-      (rename-file file (db-dump-file db)))))
+          (format out "~%;; ~d-~2,'0d-~2,'0d ~2,'0d:~2,'0d:~2,'0d" y m d h mi s))))
+    (rename-file file (db-dump-file db))))
 
 (defun fork-and-dump (db)
   (let ((pid (sb-posix:posix-fork)))
