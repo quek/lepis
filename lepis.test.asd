@@ -6,5 +6,5 @@
                 :components ((:file "package")
                              (:file "tree")
                              (:file "lepis"))))
-  :depends-on (lepis fiveam))
+  :depends-on (lepis hu.dwim.stefil))
 

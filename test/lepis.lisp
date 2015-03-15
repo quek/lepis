@@ -1,13 +1,13 @@
 (in-package :lepis.test)
 
-(def-suite lepis :in all)
+(defsuite lepis.test)
 
-(in-suite lepis)
+(in-suite lepis.test)
 
 (defstruct foo
   a b)
 
-(def-test basic ()
+(deftest basic ()
   (with-db  ("/tmp/lepis/")
     (clear-db)
     (! :foo 1)
@@ -21,7 +21,7 @@
     (is (string= "world" (@ "hello")))
     (is (equalp (make-foo :a 1 :b 'xxx) (@ :foo1)))))
 
-(def-test inc-thread ()
+(deftest inc-thread ()
   (with-db ("/tmp/lepis/")
     (clear-db)
     (mapc #'sb-thread:join-thread
@@ -33,7 +33,7 @@
                          :arguments (list *db*))))
     (is (= 10000 (@ :inc)))))
 
-(def-test hash-basic ()
+(deftest hash-basic ()
   (with-db ("/tmp/lepis/")
     (clear-db)
     (hset :hash 'a 1 'b 2 'c 3)
@@ -48,7 +48,7 @@
       (is (= 1 (gethash 'a h)))
       (is (= 3 (gethash 'c h))))))
 
-(def-test zset-basic ()
+(deftest zset-basic ()
   (with-db ("/tmp/lepis/")
     (clear-db)
     (is (= 3 (zadd :zset 1 'foo 2 'bar 30 'baz)))
@@ -68,7 +68,7 @@
     (is (= 2 (zrem :zset 'bar 'foz)))
     (is (equal '(foo baz) (zrang :zset 0 nil)))))
 
-(def-test zset-struct ()
+(deftest zset-struct ()
   (with-db ("/tmp/lepis/")
     (clear-db)
     (let ((a (make-foo :a 1))
@@ -79,7 +79,7 @@
       (is (= 0 (zadd :zset 20 a)))
       (is (equalp `((,c . 3) (,a . 20)) (zrang :zset 0 nil :with-scores t))))))
 
-(def-test set-basic ()
+(deftest set-basic ()
   (with-db ("/tmp/lepis/")
     (clear-db)
     (is (= 1 (sadd :set "a")))
@@ -92,7 +92,7 @@
     (is (equal '("c") (sinter :set :set2)))
     (is (equal '("a" "c" "d") (sunion :set :set2)))))
 
-(def-test dump-object-identity ()
+(deftest dump-object-identity ()
   (with-db ("/tmp/lepis/")
     (clear-db)
     (let ((foo (make-foo))
@@ -117,7 +117,7 @@
         (is (or (eq list (car xs)) (eq list (cadr xs))))
         (is (or (eq foo (car xs)) (eq foo (cadr xs))))))))
 
-(def-test open-by-many-threads ()
+(deftest open-by-many-threads ()
   (with-db ("/tmp/lepis/")
     (clear-db))
   (mapc #'sb-thread:join-thread
@@ -130,4 +130,4 @@
   (with-db ("/tmp/lepis/")
     (is (= 1000 (@ :foo)))))
 
-(debug!)
+(lepis.test)

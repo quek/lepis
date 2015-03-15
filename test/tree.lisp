@@ -1,9 +1,10 @@
 (in-package :lepis.test)
 
-(def-suite tree :in all)
-(in-suite tree)
+(defsuite lepis.tree)
 
-(def-test basic ()
+(in-suite lepis.tree)
+
+(deftest basic ()
   (let ((node nil))
     (setf node (lepis.tree:tree-add node 1 1))
     (is (= 1 (lepis.tree::node-size node)))
@@ -33,4 +34,4 @@
     (is (equal '(1 0 2 3 4) (mapcar #'lepis.tree::node-value
                                     (lepis.tree::tree-search-range-by-rank node 0 nil nil))))))
 
-(debug!)
+(lepis.tree)
