@@ -32,14 +32,14 @@
                    (zset-tree zset) (tree-add (zset-tree zset) score key)))
     new-count))
 
-(defun zset-range (zset start stop with-scores)
+(defun zset-range (zset start stop with-scores from-end)
   (let ((tree (zset-tree zset)))
     (mapcar (if with-scores
                 (lambda (node)
                   (cons (lepis.tree::node-value node)
                         (lepis.tree::node-key node)))
                 #'lepis.tree::node-value)
-            (tree-search-range-by-rank tree start stop))))
+            (tree-search-range-by-rank tree start stop from-end))))
 
 (defun zset-range-by-score (zset min max with-scores offset limit)
   (let ((tree (zset-tree zset)))

@@ -205,11 +205,38 @@
 ;;   (9 18) 
 ;;⇒ NIL
 
+(defun map-tree-from-end (function tree &rest more-trees)
+  (%map-tree-from-end function (cons tree more-trees)))
 
-(defun tree-search-range-by-rank (node start &optional end)
+(defun %map-tree-from-end (function trees)
+  (when (every #'identity trees)
+      (%map-tree-from-end function (mapcar #'node-right trees))
+      (apply function trees)
+      (%map-tree-from-end function (mapcar #'node-left trees))))
+#+nil
+(let (x y)
+  (loop for i to 9 do (setf x (tree-add x i i) y (tree-add y (+ i i) (+ i i))))
+  (map-tree-from-end (lambda (&rest trees) (print (mapcar #'node-key trees))) x y))
+;;→ 
+;;   (9 18) 
+;;   (8 16) 
+;;   (7 14) 
+;;   (6 12) 
+;;   (5 10) 
+;;   (4 8) 
+;;   (3 6) 
+;;   (2 4) 
+;;   (1 2) 
+;;   (0 0) 
+;;⇒ NIL
+
+(defun tree-search-range-by-rank (node start end from-end)
   (let ((count (if end (- end start -1) (tree-size node))))
     (when (plusp count)
-      (nreverse (%range-by-rank node start count nil)))))
+      (nreverse                         ;TODO nreverse なしにする
+       (if from-end
+           (%range-by-rank-from-end node start count nil)
+           (%range-by-rank node start count nil))))))
 
 (defun %range-by-rank (node start count parents)
   (let ((size (tree-size (node-left node))))
@@ -234,8 +261,34 @@
 #+nil
 (let (node)
   (loop for i to 10 do (setf node (tree-add node i i)))
-  (mapcar #'node-key (tree-search-range-by-rank node 3 6)))
+  (mapcar #'node-key (tree-search-range-by-rank node 3 6 nil)))
 ;;⇒ (3 4 5 6)
+
+(defun %range-by-rank-from-end (node start count parents)
+  (let ((size (tree-size (node-right node))))
+    (cond ((< start size)
+           (%range-by-rank-from-end (node-right node) start count (cons node parents)))
+          ((= start size)
+           (let (acc)
+             (mapc (lambda (node)
+                     #1=(progn
+                          (if (zerop count)
+                              (return-from %range-by-rank-from-end acc))
+                          (push node acc)
+                          (decf count))
+                     (block map
+                       (map-tree-from-end (lambda (node)
+                                            #1#)
+                                          (node-left node))))
+                   (cons node parents))
+             acc))
+          (t
+           (%range-by-rank-from-end (node-left node) (- start size 1) count parents)))))
+#+nil
+(let (node)
+  (loop for i to 10 do (setf node (tree-add node i i)))
+  (mapcar #'node-key (tree-search-range-by-rank node 3 6 t)))
+;;⇒ (7 6 5 4)
 
 (defun %range-by-score-start (node min parents)
   (cond ((null node)

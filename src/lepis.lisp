@@ -133,10 +133,10 @@
       (setf zset (setf (gethash key hash) (make-zset))))
     (apply #'zset-add zset score member more-score-members)))
 
-(def-read-op zrang (hash key start stop &key with-scores)
+(def-read-op zrang (hash key start stop &key with-scores from-end)
   (let ((zset (gethash key hash)))
     (when zset
-      (zset-range zset start stop with-scores))))
+      (zset-range zset start stop with-scores from-end))))
 
 (def-read-op zrang-by-score (hash key min max &key with-scores (offset 0) limit)
   (let ((zset (gethash key hash)))
