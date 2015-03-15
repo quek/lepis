@@ -231,12 +231,13 @@
 ;;⇒ NIL
 
 (defun tree-search-range-by-rank (node start end from-end)
-  (let ((count (if end (- end start -1) (tree-size node))))
+  (let* ((tree-size (tree-size node))
+         (count (if end (- end start -1) tree-size)))
     (when (plusp count)
-      (nreverse                         ;TODO nreverse なしにする
-       (if from-end
-           (%range-by-rank-from-end node start count nil)
-           (%range-by-rank node start count nil))))))
+      (let ((start (- tree-size start count)))
+        (if from-end
+            (%range-by-rank node start count nil)
+            (%range-by-rank-from-end node start count nil))))))
 
 (defun %range-by-rank (node start count parents)
   (let ((size (tree-size (node-left node))))

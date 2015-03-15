@@ -18,7 +18,7 @@
     (setf node (lepis.tree:tree-add node 2 20))
     (setf node (lepis.tree:tree-add node 2 0))
     (is (equal '(1 0 2 20 3 4) (mapcar #'lepis.tree::node-value
-                                       (lepis.tree::tree-search-range-by-rank node 0))))
+                                       (lepis.tree::tree-search-range-by-rank node 0 nil nil))))
 
     (setf node (lepis.tree:tree-add node 3 30))
     (is (equal '(0 2 20 3 30)
@@ -31,6 +31,6 @@
     (setf node (lepis.tree:tree-delete node 2 20))
     (setf node (lepis.tree:tree-delete node 3 30))
     (is (equal '(1 0 2 3 4) (mapcar #'lepis.tree::node-value
-                                    (lepis.tree::tree-search-range-by-rank node 0))))))
+                                    (lepis.tree::tree-search-range-by-rank node 0 nil nil))))))
 
 (debug!)
