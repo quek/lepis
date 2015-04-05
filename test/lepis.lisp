@@ -7,6 +7,11 @@
 (defstruct foo
   a b)
 
+(defclass bar ()
+  ((a :initarg :a :initform nil)
+   (b :initarg :b :initform nil)))
+
+
 (deftest basic ()
   (with-db  ("/tmp/lepis/")
     (clear-db)
@@ -78,6 +83,20 @@
       (is (equalp `((,a . 2) (,c . 3)) (zrang :zset 0 nil :with-scores t)))
       (is (= 0 (zadd :zset 20 a)))
       (is (equalp `((,c . 3) (,a . 20)) (zrang :zset 0 nil :with-scores t))))))
+
+(deftest zset-class ()
+  (with-db ("/tmp/lepis/")
+    (clear-db)
+    (let ((a (make-instance 'bar :a 1 :b "1"))
+          (b (make-instance 'bar :a 2 :b "2")))
+      (is (= 2 (zadd :zset 1 a 2 b)))
+      (is (equalp `(,a ,b) (zrang :zset 0 nil)))))
+  (with-db ("/tmp/lepis/")
+    (destructuring-bind (a b) (zrang :zset 0 nil)
+      (is (= 1 (slot-value a 'a)))
+      (is (string= "1" (slot-value a 'b)))
+      (is (= 2 (slot-value b 'a)))
+      (is (string= "2" (slot-value b 'b))))))
 
 (deftest set-basic ()
   (with-db ("/tmp/lepis/")

@@ -1,0 +1,11 @@
+(in-package :lepis)
+
+(defmethod emit ((object standard-object) stream)
+  (write-string "#." stream)
+  (emit `(let ((x (make-instance ',(type-of object))))
+           ,@(mapcar (lambda (slot)
+                       `(setf (slot-value x ',(sb-pcl:slot-definition-name slot))
+                              ,(slot-value object (sb-pcl:slot-definition-name slot))))
+                     (sb-pcl:class-slots (class-of object)))
+           x)
+        stream))

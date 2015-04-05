@@ -49,50 +49,55 @@
     :else (store-object object hash)))
 
 
-(defun emit-object (object table stream)
-  (aif (gethash object table)
+(defgeneric emit (object stream))
+
+(defmethod emit (object stream)
+  (print object stream))
+
+(defun emit-object (object stream)
+  (aif (gethash object *dump-objects*)
        (progn
          (write-string "#." stream)
-         (print `(l ,it) stream))
-       (print object stream)))
+         (emit `(l ,it) stream))
+       (emit object stream)))
 
-(defun emit-value-object (object table stream)
+(defun emit-value-object (object stream)
   (with-value-type-case object
     :zset (progn
-            (print +dump-zset-mark+ stream)
+            (emit +dump-zset-mark+ stream)
             (maphash (lambda (key score)
-                       (emit-object key table stream)
-                       (emit-object score table stream))
+                       (emit-object key stream)
+                       (emit-object score stream))
                      (lepis.zset::zset-hash object))
-            (print +dump-end-of-object-mark+ stream)
-            (print +dump-end-of-object-mark+ stream))
+            (emit +dump-end-of-object-mark+ stream)
+            (emit +dump-end-of-object-mark+ stream))
     :set (progn
-           (print +dump-set-mark+ stream)
+           (emit +dump-set-mark+ stream)
            (lepis.set:map-set (lambda (value)
-                                (emit-object value table stream))
+                                (emit-object value stream))
                   object)
-           (print +dump-end-of-object-mark+ stream))
+           (emit +dump-end-of-object-mark+ stream))
     :hash (progn
-            (print +dump-hash-mark+ stream)
+            (emit +dump-hash-mark+ stream)
             (maphash (lambda (key value)
-                       (emit-object key table stream)
-                       (emit-object value table stream))
+                       (emit-object key stream)
+                       (emit-object value stream))
                      object)
-            (print +dump-end-of-object-mark+ stream)
-            (print +dump-end-of-object-mark+ stream))
-    :else (emit-object object table stream)))
+            (emit +dump-end-of-object-mark+ stream)
+            (emit +dump-end-of-object-mark+ stream))
+    :else (emit-object object stream)))
 
 (defun dump-db-hash (hash stream)
-  (let ((table (make-object-table hash)))
+  (let ((*dump-objects* (make-object-table hash)))
     (maphash (lambda (key value)
-               (print value stream)
-               (print key stream))
-             table)
-    (print +dump-end-of-object-mark+ stream) ;for key
-    (print +dump-end-of-object-mark+ stream) ;for value
+               (emit value stream)
+               (emit key stream))
+             *dump-objects*)
+    (emit +dump-end-of-object-mark+ stream) ;for key
+    (emit +dump-end-of-object-mark+ stream) ;for value
     (maphash (lambda (key value)
-               (emit-object key table stream)
-               (emit-value-object value table stream))
+               (emit-object key stream)
+               (emit-value-object value stream))
              hash)))
 
 (defun l (id)
