@@ -64,6 +64,8 @@
     (is (= 1 (zadd :zset 3 'baz 4 'foz)))
     (is (= 4 (zcard :zset)))
     (is (equal '(foo bar baz foz) (zrang :zset 0 nil)))
+    (is (equal '(foo bar baz foz) (zrang :zset 0 100)))
+    (is (equal '(foz baz bar foo) (zrang :zset 0 100 :from-end t)))
     (is (equal '(baz bar) (zrang :zset 1 2 :from-end t)))
     (is (equal '((bar . 2) (baz . 3)) (zrang :zset 1 2 :with-scores t)))
     (is (equal '(bar baz) (zrang-by-score :zset 2 3)))

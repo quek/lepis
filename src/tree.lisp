@@ -240,25 +240,29 @@
             (%range-by-rank-from-end node start count nil))))))
 
 (defun %range-by-rank (node start count parents)
-  (let ((size (tree-size (node-left node))))
-    (cond ((< start size)
-           (%range-by-rank (node-left node) start count (cons node parents)))
-          ((= start size)
-           (let (acc)
-             (mapc (lambda (node)
-                     #1=(progn
-                          (if (zerop count)
-                              (return-from %range-by-rank acc))
-                          (push node acc)
-                          (decf count))
-                     (block map
-                       (map-tree (lambda (node)
-                                   #1#)
-                                 (node-right node))))
-                   (cons node parents))
-             acc))
-          (t
-           (%range-by-rank (node-right node) (- start size 1) count parents)))))
+  (labels ((collect (nodes)
+             (let (acc)
+               (mapc (lambda (node)
+                       #1=(progn
+                            (if (zerop count)
+                                (return-from %range-by-rank acc))
+                            (push node acc)
+                            (decf count))
+                       (block map
+                         (map-tree (lambda (node)
+                                     #1#)
+                                   (node-right node))))
+                     nodes)
+               acc)))
+    (if node
+        (let ((size (tree-size (node-left node))))
+          (cond ((< start size)
+                 (%range-by-rank (node-left node) start count (cons node parents)))
+                ((= start size)
+                 (collect (cons node parents)))
+                (t
+                 (%range-by-rank (node-right node) (- start size 1) count parents))))
+        (collect parents))))
 #+nil
 (let (node)
   (loop for i to 10 do (setf node (tree-add node i i)))
@@ -266,25 +270,29 @@
 ;;⇒ (3 4 5 6)
 
 (defun %range-by-rank-from-end (node start count parents)
-  (let ((size (tree-size (node-right node))))
-    (cond ((< start size)
-           (%range-by-rank-from-end (node-right node) start count (cons node parents)))
-          ((= start size)
-           (let (acc)
-             (mapc (lambda (node)
-                     #1=(progn
-                          (if (zerop count)
-                              (return-from %range-by-rank-from-end acc))
-                          (push node acc)
-                          (decf count))
-                     (block map
-                       (map-tree-from-end (lambda (node)
-                                            #1#)
-                                          (node-left node))))
-                   (cons node parents))
-             acc))
-          (t
-           (%range-by-rank-from-end (node-left node) (- start size 1) count parents)))))
+  (labels ((collect (nodes)
+             (let (acc)
+               (mapc (lambda (node)
+                       #1=(progn
+                            (if (zerop count)
+                                (return-from %range-by-rank-from-end acc))
+                            (push node acc)
+                            (decf count))
+                       (block map
+                         (map-tree-from-end (lambda (node)
+                                              #1#)
+                                            (node-left node))))
+                     nodes)
+               acc)))
+    (if node
+        (let ((size (tree-size (node-right node))))
+          (cond ((< start size)
+                 (%range-by-rank-from-end (node-right node) start count (cons node parents)))
+                ((= start size)
+                 (collect (cons node parents)))
+                (t
+                 (%range-by-rank-from-end (node-left node) (- start size 1) count parents))))
+        (collect parents))))
 #+nil
 (let (node)
   (loop for i to 10 do (setf node (tree-add node i i)))
