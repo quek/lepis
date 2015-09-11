@@ -92,6 +92,9 @@
 (def-write-op inc (hash key &optional (delta 1))
   (incf (gethash key hash 0) delta))
 
+(def-write-op del (hash key)
+  (remhash key hash))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; hash
