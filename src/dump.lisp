@@ -15,13 +15,35 @@
              hash)
     table))
 
+(defgeneric store-object (object hash))
+
 (defmethod store-object (object hash)
-  (typecase object
-    ((or symbol number string)
-     nil)
-    (t
-     (sunless (gethash object hash)
-       (setf it (hash-table-count hash))))))
+  nil)
+
+(defmethod store-object ((object cons) hash)
+  (sunless (gethash object hash)
+    (mapc (lambda (x) (store-object x hash)) object)
+    (setf it (hash-table-count hash))))
+
+(defmethod store-object ((object hash-table) hash)
+  (sunless (gethash object hash)
+    (maphash (lambda (key value)
+               (store-object key hash)
+               (store-object value hash))
+             object)
+    (setf it (hash-table-count hash))))
+
+(defmethod store-object ((object sb-pcl::slot-object) hash)
+  (sunless (gethash object hash)
+    (store-slots object hash)
+    (setf it (hash-table-count hash))))
+
+(defun store-slots (object hash)
+  (loop for slot in (sb-pcl:class-slots (class-of object))
+        for slot-name = (sb-pcl:slot-definition-name slot)
+        if (slot-boundp object slot-name)
+          do (store-object (slot-value object slot-name)
+                           hash)))
 
 (defmacro with-value-type-case (var &key zset set hash else)
   `(cond ((lepis.zset:zset-p ,var)
@@ -54,11 +76,21 @@
 (defmethod emit (object stream)
   (print object stream))
 
+(defmethod emit ((list cons) stream)
+  (format stream "~%#.(list ")
+  (loop for i in list
+        do (emit-object i stream))
+  (write-char #\) stream))
+
+(defvar *sharp-dot* t)
+
 (defun emit-object (object stream)
   (aif (gethash object *dump-objects*)
        (progn
-         (write-string "#." stream)
-         (emit `(l ,it) stream))
+         (terpri stream)
+         (when *sharp-dot*
+           (write-string "#." stream))
+         (format stream "(~s ~d)" 'l it))
        (emit object stream)))
 
 (defun emit-value-object (object stream)
@@ -104,12 +136,12 @@
   (gethash id *dump-objects*))
 
 (defun load-dump-objects (stream)
-  (let ((hash (make-hash-table :test 'eql)))
+  (let ((*dump-objects* (make-hash-table :test 'eql)))
     (loop for key = (read stream)
           for value = (read stream)
           while (not (eq key +dump-end-of-object-mark+))
-          do (setf (gethash key hash) value))
-    hash))
+          do (setf (gethash key *dump-objects*) value))
+    *dump-objects*))
 
 (defun load-db-hash (hash stream)
   (clrhash hash)
