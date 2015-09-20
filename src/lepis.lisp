@@ -209,12 +209,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; dump & load
 (defun dump-db (db)
-  (let ((file (multiple-value-bind (fd file)
-                  (sb-posix:mkstemp
-                   (namestring
-                    (merge-pathnames "dump-temp-XXXXXX" (db-data-dir db))))
-                (sb-posix:close fd)
-                file)))
+  (let ((file (tempfile (db-data-dir db))))
     (with-open-file (out file :direction :output :if-exists :overwrite)
       (with-standard-io-syntax
         (sb-ext:with-locked-hash-table ((db-hash db))

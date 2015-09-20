@@ -3,7 +3,8 @@
   (:export #:value<
            #:value=
            #:lock-file
-           #:unlock-file))
+           #:unlock-file
+           #:tempfile))
 
 (in-package :lepis.util)
 
@@ -71,3 +72,11 @@
     (sb-posix:syscall-error (error)
       (describe error)
       nil)))
+
+(defun tempfile (dir)
+  (multiple-value-bind (fd file)
+      (sb-posix:mkstemp
+       (namestring
+        (merge-pathnames "dump-temp-XXXXXX" dir)))
+    (sb-posix:close fd)
+    file))
