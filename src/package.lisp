@@ -10,6 +10,7 @@
           #:!
           #:@
           #:del
+          #:expire
           #:inc
           #:hdel
           #:hget

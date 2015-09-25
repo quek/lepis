@@ -6,6 +6,7 @@
 
 (defstruct (db (:constructor %open-db))
   (hash (make-hash-table :synchronized t :test 'equal))
+  (expire-hash (make-hash-table :synchronized t :test 'equal))
   (update-count 0 :type fixnum)
   (dump-threshold-second 60 :type fixnum)
   (last-dumped-time (get-universal-time))
@@ -68,17 +69,33 @@
 (defun clear-db (&optional (db *db*))
   (clrhash (db-hash db)))
 
-(defmacro def-read-op (op (hash &rest args) &body body)
-  `(defun ,op ,args
-     (let ((,hash (db-hash *db*)))
-       ,@body)))
-
-(defmacro def-write-op (op (hash &rest args) &body body)
-  `(defun ,op ,args
-     (let ((,hash (db-hash *db*)))
-       (sb-ext:with-locked-hash-table (,hash)
-         (incf (db-update-count *db*))
+(defmacro def-read-op (op (hash key &rest args) &body body)
+  (let ((expire-hash (gensym "EXPIRE-HASH"))
+        (now (gensym "NOW")))
+    `(defun ,op (,key ,@args)
+       (let ((,hash (db-hash *db*))
+             (,expire-hash (db-expire-hash *db*))
+             (,now (get-universal-time)))
+         (when (< (gethash ,key ,expire-hash ,now) ,now)
+           (sb-ext:with-locked-hash-table (,hash)
+             (when (< (gethash ,key ,expire-hash ,now) ,now)
+               (remhash ,key ,hash)
+               (remhash ,key ,expire-hash))))
          ,@body))))
+
+(defmacro def-write-op (op (hash key &rest args) &body body)
+  (let ((expire-hash (gensym "EXPIRE-HASH"))
+        (now (gensym "NOW")))
+    `(defun ,op (,key ,@args)
+       (let ((,hash (db-hash *db*))
+             (,expire-hash (db-expire-hash *db*))
+             (,now (get-universal-time)))
+         (sb-ext:with-locked-hash-table (,hash)
+           (when (< (gethash ,key ,expire-hash ,now) ,now)
+             (remhash ,key ,hash)
+             (remhash ,key ,expire-hash))
+           (incf (db-update-count *db*))
+           ,@body)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; object
@@ -87,14 +104,22 @@
   (gethash key hash default))
 
 (def-write-op ! (hash key value)
+  (remhash key (db-expire-hash *db*))
   (setf (gethash key hash) value))
+
 
 (def-write-op inc (hash key &optional (delta 1))
   (incf (gethash key hash 0) delta))
 
 (def-write-op del (hash key)
+  (remhash key (db-expire-hash *db*))
   (remhash key hash))
 
+(defun expire (key time)
+  (let ((expire-hash (db-expire-hash *db*)))
+    (sb-ext:with-locked-hash-table (expire-hash)
+      (setf (gethash key expire-hash)
+            (+ (get-universal-time) time)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; hash

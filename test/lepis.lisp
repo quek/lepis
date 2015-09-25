@@ -113,6 +113,15 @@
     (is (equal '("c") (sinter :set :set2)))
     (is (equal '("a" "c" "d") (sunion :set :set2)))))
 
+(deftest expire-test ()
+  (with-db ("/tmp/lepis/")
+    (clear-db)
+    (! :a :a)
+    (expire :a 1)
+    (is (eq (@ :a) :a))
+    (sleep 1)
+    (is (@ :a) nil)))
+
 (deftest dump-object-identity ()
   (with-db ("/tmp/lepis/")
     (clear-db)
