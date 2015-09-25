@@ -97,22 +97,28 @@
            (incf (db-update-count *db*))
            ,@body)))))
 
+(defmacro def-write-op-reset-expire (op (hash key &rest args) &body body)
+  `(defun ,op (,key ,@args)
+     (let ((,hash (db-hash *db*)))
+       (sb-ext:with-locked-hash-table (,hash)
+         (remhash key (db-expire-hash *db*))
+         (incf (db-update-count *db*))
+         ,@body))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; object
 
 (def-read-op @ (hash key &optional default)
   (gethash key hash default))
 
-(def-write-op ! (hash key value)
-  (remhash key (db-expire-hash *db*))
+(def-write-op-reset-expire ! (hash key value)
   (setf (gethash key hash) value))
 
 
 (def-write-op inc (hash key &optional (delta 1))
   (incf (gethash key hash 0) delta))
 
-(def-write-op del (hash key)
-  (remhash key (db-expire-hash *db*))
+(def-write-op-reset-expire del (hash key)
   (remhash key hash))
 
 (defun expire (key time)
