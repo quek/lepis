@@ -12,5 +12,4 @@
                              (:file "dump")
                              (:file "emit-standard-object")
                              (:file "lepis"))))
-  :depends-on (anaphora))
-
+  :depends-on (anaphora cl-ppcre))

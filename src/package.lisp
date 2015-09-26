@@ -7,6 +7,7 @@
           #:load-db
           #:dump-db
           #:clear-db
+          #:keys
           #:!
           #:@
           #:del

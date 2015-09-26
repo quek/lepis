@@ -127,6 +127,20 @@
       (setf (gethash key expire-hash)
             (+ (get-universal-time) time)))))
 
+(defun keys (&optional pred)
+  (let ((pred (etypecase pred
+                (null
+                 (constantly t))
+                (string
+                 (let ((reg (ppcre:create-scanner pred)))
+                   (lambda (key)
+                     (ppcre:scan reg (princ-to-string key)))))
+                (function
+                 pred))))
+    (loop for key being the hash-keys of (db-hash *db*)
+          if (funcall pred key)
+            collect key)))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; hash
 
