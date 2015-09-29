@@ -61,7 +61,9 @@
         for x in keys
         for score = (gethash x hash)
         if score
-          sum (prog1 1 (tree-delete tree score x))))
+          sum (prog1 1
+                (remhash x hash)
+                (tree-delete tree score x))))
 
 #+nil
 (let ((zset (make-zset)))
