@@ -69,6 +69,10 @@
 (defun clear-db (&optional (db *db*))
   (clrhash (db-hash db)))
 
+(declaim (inline expiredp))
+(defun expiredp (expire-hash key now)
+  (<= (gethash key expire-hash (1+ now)) now))
+
 (defmacro def-read-op (op (hash key &rest args) &body body)
   (let ((expire-hash (gensym "EXPIRE-HASH"))
         (now (gensym "NOW")))
@@ -76,9 +80,9 @@
        (let ((,hash (db-hash *db*))
              (,expire-hash (db-expire-hash *db*))
              (,now (get-universal-time)))
-         (when (< (gethash ,key ,expire-hash ,now) ,now)
+         (when (expiredp ,expire-hash ,key ,now)
            (sb-ext:with-locked-hash-table (,hash)
-             (when (< (gethash ,key ,expire-hash ,now) ,now)
+             (when (expiredp ,expire-hash ,key ,now)
                (remhash ,key ,hash)
                (remhash ,key ,expire-hash))))
          ,@body))))
@@ -91,7 +95,7 @@
              (,expire-hash (db-expire-hash *db*))
              (,now (get-universal-time)))
          (sb-ext:with-locked-hash-table (,hash)
-           (when (< (gethash ,key ,expire-hash ,now) ,now)
+           (when (expiredp ,expire-hash ,key ,now)
              (remhash ,key ,hash)
              (remhash ,key ,expire-hash))
            (incf (db-update-count *db*))
@@ -254,14 +258,13 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; dump & load
 (defun dump-db (db)
-  (let ((file (tempfile (db-data-dir db))))
+  (let ((file (tempfile (db-data-dir db)))
+        (hash (db-hash db)))
     (with-open-file (out file :direction :output :if-exists :overwrite)
       (with-standard-io-syntax
-        (sb-ext:with-locked-hash-table ((db-hash db))
+        (sb-ext:with-locked-hash-table (hash)
           (setf (db-update-count db) 0)
-          (dump-db-hash (db-hash db) out)
-          ;; TODO db-expire-hash をダンプする
-          )
+          (dump-db-hash hash (db-expire-hash db) out))
         (multiple-value-bind (s mi h d m y) (decode-universal-time (get-universal-time))
           (format out "~%;; ~d-~2,'0d-~2,'0d ~2,'0d:~2,'0d:~2,'0d" y m d h mi s))))
     (rename-file file (db-dump-file db))))
@@ -277,9 +280,10 @@
 (defun load-db (db)
   (with-open-file (in (db-dump-file db))
     (with-standard-io-syntax
-      (let ((hash (db-hash db)))
+      (let ((hash (db-hash db))
+            (expire-hash (db-expire-hash db)))
         (sb-ext:with-locked-hash-table (hash)
+          (setf (db-update-count db) 0)
           (clrhash hash)
-          (load-db-hash hash in)
-          ;; TODO db-expire-hash をロードする
-          )))))
+          (clrhash expire-hash)
+          (load-db-hash hash expire-hash in))))))

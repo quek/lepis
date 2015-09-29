@@ -119,7 +119,7 @@
             (emit +dump-end-of-object-mark+ stream))
     :else (emit-object object stream)))
 
-(defun dump-db-hash (hash stream)
+(defun dump-db-hash (hash expire-hash stream)
   (let ((*dump-objects* (make-object-table hash)))
     (maphash (lambda (key value)
                (emit value stream)
@@ -130,7 +130,15 @@
     (maphash (lambda (key value)
                (emit-object key stream)
                (emit-value-object value stream))
-             hash)))
+             hash)
+    (emit +dump-end-of-object-mark+ stream) ;for key
+    (emit +dump-end-of-object-mark+ stream) ;for value
+    (maphash (lambda (key value)
+               (emit-object key stream)
+               (emit-object value stream))
+             expire-hash)
+    (emit +dump-end-of-object-mark+ stream)   ;for key
+    (emit +dump-end-of-object-mark+ stream))) ;for value
 
 (defun l (id)
   (gethash id *dump-objects*))
@@ -143,18 +151,22 @@
           do (setf (gethash key *dump-objects*) value))
     *dump-objects*))
 
-(defun load-db-hash (hash stream)
+(defun load-db-hash (hash expire-hash stream)
   (clrhash hash)
   (let ((*dump-objects* (load-dump-objects stream)))
-    (loop for key = (read stream nil stream)
-          for value = (read stream nil stream)
-          while (not (eq key stream))
+    (loop for key = (read stream)
+          for value = (read stream)
+          while (not (eq key +dump-end-of-object-mark+))
           do (setf (gethash key hash)
                    (case value
                      (+dump-zset-mark+ (load-zset stream))
                      (+dump-set-mark+  (load-set stream))
                      (+dump-hash-mark+ (load-hash stream))
-                     (t                value))))))
+                     (t                value))))
+    (loop for key = (read stream)
+          for value = (read stream)
+          while (not (eq key +dump-end-of-object-mark+))
+          do (setf (gethash key expire-hash) value))))
 
 (defun load-zset (stream)
   (let ((zset (make-zset)))
