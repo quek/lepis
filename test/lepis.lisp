@@ -73,6 +73,8 @@
                (zrang-by-score :zset most-negative-double-float most-positive-double-float
                                :with-scores t :offset 1 :limit 2)))
     (is (= 2 (zrem :zset 'bar 'foz)))
+    (is (equal '(foo baz) (zrang :zset 0 nil))))
+  (with-db ("/tmp/lepis/")
     (is (equal '(foo baz) (zrang :zset 0 nil)))))
 
 (deftest zset-struct ()
