@@ -259,7 +259,9 @@
       (with-standard-io-syntax
         (sb-ext:with-locked-hash-table ((db-hash db))
           (setf (db-update-count db) 0)
-          (dump-db-hash (db-hash db) out))
+          (dump-db-hash (db-hash db) out)
+          ;; TODO db-expire-hash をダンプする
+          )
         (multiple-value-bind (s mi h d m y) (decode-universal-time (get-universal-time))
           (format out "~%;; ~d-~2,'0d-~2,'0d ~2,'0d:~2,'0d:~2,'0d" y m d h mi s))))
     (rename-file file (db-dump-file db))))
@@ -276,6 +278,8 @@
   (with-open-file (in (db-dump-file db))
     (with-standard-io-syntax
       (let ((hash (db-hash db)))
-        (clrhash hash)
-        (load-db-hash hash in)))))
-
+        (sb-ext:with-locked-hash-table (hash)
+          (clrhash hash)
+          (load-db-hash hash in)
+          ;; TODO db-expire-hash をロードする
+          )))))
