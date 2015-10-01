@@ -11,5 +11,6 @@
                              (:file "package")
                              (:file "dump")
                              (:file "emit-standard-object")
-                             (:file "lepis"))))
+                             (:file "lepis")
+                             (:file "interrupt"))))
   :depends-on (anaphora cl-ppcre))

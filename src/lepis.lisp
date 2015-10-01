@@ -45,10 +45,11 @@
                                       (sb-thread:terminate-thread thread))))))))))
 
 (defun dump-thread (db)
-  (loop (sleep (db-dump-threshold-second db))
-        (when (plusp (db-update-count db))
-          (setf (db-update-count db) 0)
-          (ignore-errors (fork-and-dump db)))))
+  (loop (unwind-protect
+             (sleep (db-dump-threshold-second db))
+          (when (plusp (db-update-count db))
+            (setf (db-update-count db) 0)
+            (ignore-errors (fork-and-dump db))))))
 
 (defun close-db (&optional (db *db*))
   (sb-ext:with-locked-hash-table (*db-table*)
