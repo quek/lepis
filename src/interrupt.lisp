@@ -5,6 +5,7 @@
 (defvar *old-sighup-handler* nil)
 
 (defun signal-handler (&rest args)
+  (declare (ignore args))
   (sb-ext:with-locked-hash-table (*db-table*)
     (maphash (lambda (data-dir db)
                (format *standard-output* "~&start dump: ~a" data-dir)
