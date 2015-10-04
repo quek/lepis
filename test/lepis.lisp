@@ -1,9 +1,5 @@
 (in-package :lepis.test)
 
-(defsuite lepis.test)
-
-(in-suite lepis.test)
-
 (defstruct foo
   a b)
 
@@ -12,7 +8,7 @@
    (b :initarg :b :initform nil)))
 
 
-(deftest basic ()
+(deftest test-basic ()
   (with-db  ("/tmp/lepis/")
     (clear-db)
     (! :foo 1)
@@ -26,7 +22,7 @@
     (is (string= "world" (@ "hello")))
     (is (equalp (make-foo :a 1 :b 'xxx) (@ :foo1)))))
 
-(deftest inc-thread ()
+(deftest test-inc-thread ()
   (with-db ("/tmp/lepis/")
     (clear-db)
     (mapc #'sb-thread:join-thread
@@ -38,7 +34,7 @@
                          :arguments (list *db*))))
     (is (= 10000 (@ :inc)))))
 
-(deftest hash-basic ()
+(deftest test-hash-basic ()
   (with-db ("/tmp/lepis/")
     (clear-db)
     (hset :hash 'a 1 'b 2 'c 3)
@@ -53,7 +49,7 @@
       (is (= 1 (gethash 'a h)))
       (is (= 3 (gethash 'c h))))))
 
-(deftest zset-basic ()
+(deftest test-zset-basic ()
   (with-db ("/tmp/lepis/")
     (clear-db)
     (is (= 3 (zadd :zset 1 'foo 2 'bar 30 'baz)))
@@ -77,7 +73,7 @@
   (with-db ("/tmp/lepis/")
     (is (equal '(foo baz) (zrang :zset 0 nil)))))
 
-(deftest zset-struct ()
+(deftest test-zset-struct ()
   (with-db ("/tmp/lepis/")
     (clear-db)
     (let ((a (make-foo :a 1))
@@ -88,7 +84,7 @@
       (is (= 0 (zadd :zset 20 a)))
       (is (equalp `((,c . 3) (,a . 20)) (zrang :zset 0 nil :with-scores t))))))
 
-(deftest zset-class ()
+(deftest test-zset-class ()
   (with-db ("/tmp/lepis/")
     (clear-db)
     (let ((a (make-instance 'bar :a 1 :b "1"))
@@ -102,7 +98,7 @@
       (is (= 2 (slot-value b 'a)))
       (is (string= "2" (slot-value b 'b))))))
 
-(deftest set-basic ()
+(deftest test-set-basic ()
   (with-db ("/tmp/lepis/")
     (clear-db)
     (is (= 1 (sadd :set "a")))
@@ -115,7 +111,7 @@
     (is (equal '("c") (sinter :set :set2)))
     (is (equal '("a" "c" "d") (sunion :set :set2)))))
 
-(deftest expire-test ()
+(deftest test-expire-test ()
   (with-db ("/tmp/lepis/")
     (clear-db)
     (! :a :a)
@@ -130,7 +126,7 @@
     (sleep 1)
     (is (eq (@ :a) nil))))
 
-(deftest dump-object-identity ()
+(deftest test-dump-object-identity ()
   (with-db ("/tmp/lepis/")
     (clear-db)
     (let ((foo (make-foo))
@@ -155,17 +151,18 @@
         (is (or (eq list (car xs)) (eq list (cadr xs))))
         (is (or (eq foo (car xs)) (eq foo (cadr xs))))))))
 
-(deftest open-by-many-threads ()
+(deftest test-open-by-many-threads ()
   (with-db ("/tmp/lepis/")
     (clear-db))
   (mapc #'sb-thread:join-thread
         (loop for i below 10
               collect (sb-thread:make-thread
                        (lambda ()
+                         (sleep 0.001)
                          (loop for i below 100 do
                            (with-db ("/tmp/lepis/")
                              (inc :foo)))))))
   (with-db ("/tmp/lepis/")
     (is (= 1000 (@ :foo)))))
 
-(lepis.test)
+(run-package-tests :interactive t)
