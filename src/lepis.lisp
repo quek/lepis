@@ -217,6 +217,19 @@
       (setf zset (setf (gethash key hash) (make-zset))))
     (zset-inc zset member delta)))
 
+(def-read-op zscore (hash key member)
+  (aif (gethash key hash)
+       (zset-score it member)))
+
+(def-write-op zinterstore (hash dest key.weight-list &key (aggregate #'+))
+  (let ((dest-zset (setf (gethash dest hash) (make-zset)))
+        (k.w (loop for i in key.weight-list
+                   collect (if (consp i)
+                               (cons (@ (car i)) (cadr i))
+                               (cons (@ i) 1)))))
+    (zset-interstore dest-zset k.w aggregate)))
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; set
 

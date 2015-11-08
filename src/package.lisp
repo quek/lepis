@@ -26,7 +26,9 @@
           #:zcard
           #:zadd
           #:zinc
+          #:zinterstore
           #:zrang
           #:zrang-by-score
           #:zrank
-          #:zrem))
+          #:zrem
+          #:zscore))
