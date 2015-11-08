@@ -25,6 +25,7 @@
           #:smembers
           #:zcard
           #:zadd
+          #:zinc
           #:zrang
           #:zrang-by-score
           #:zrank

@@ -5,6 +5,7 @@
            #:zset-card
            #:zset-add
            #:zset-delete
+           #:zset-inc
            #:zset-rem
            #:zset-range
            #:zset-range-by-score
@@ -31,6 +32,18 @@
           do (setf (gethash key hash) score
                    (zset-tree zset) (tree-add (zset-tree zset) score key)))
     new-count))
+
+(defun zset-inc (zset key delta)
+  (let ((hash (zset-hash zset)))
+    (let ((score (gethash key hash)))
+      (if score
+          (progn
+            (setf (zset-tree zset) (tree-delete (zset-tree zset) score key))
+            (incf score delta))
+          (setf score delta))
+      (setf (gethash key hash) score
+            (zset-tree zset) (tree-add (zset-tree zset) score key))
+      score)))
 
 (defun zset-range (zset start stop with-scores from-end)
   (let ((tree (zset-tree zset)))

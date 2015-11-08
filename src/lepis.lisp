@@ -211,6 +211,11 @@
         (apply #'zset-delete zset member more-members)
         0)))
 
+(def-write-op zinc (hash key member &optional (delta 1))
+  (let ((zset (gethash key hash)))
+    (unless zset
+      (setf zset (setf (gethash key hash) (make-zset))))
+    (zset-inc zset member delta)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; set
