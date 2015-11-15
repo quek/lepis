@@ -100,7 +100,7 @@
         if score
           sum (prog1 1
                 (remhash x hash)
-                (tree-delete tree score x))))
+                (setf (zset-tree zset) (tree-delete tree score x)))))
 
 (defun zset-score (zset key)
   (gethash key (zset-hash zset)))
