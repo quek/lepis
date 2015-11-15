@@ -224,9 +224,14 @@
 (def-write-op zinterstore (hash dest key.weight-list &key (aggregate #'+))
   (let ((dest-zset (setf (gethash dest hash) (make-zset)))
         (k.w (loop for i in key.weight-list
+                   for zset = (if (consp i)
+                                  (@ (car i))
+                                  (@ i))
+                   unless zset
+                     do (return-from zinterstore nil)
                    collect (if (consp i)
-                               (cons (@ (car i)) (cadr i))
-                               (cons (@ i) 1)))))
+                               (cons zset (cadr i))
+                               (cons zset 1)))))
     (zset-interstore dest-zset k.w aggregate)))
 
 

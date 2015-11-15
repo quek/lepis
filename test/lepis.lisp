@@ -82,7 +82,9 @@
     (zadd :z1 1 'foo 2 'bar 3 'baz)
     (zadd :z2 20 'bar 30 'baz 40 'foz)
     (zinterstore :z3 '((:z1 2) :z2) :aggregate #'*)
-    (is (equal '((bar . 80) (baz . 180)) (zrang :z3 0 nil :with-scores t)))))
+    (is (equal '((bar . 80) (baz . 180)) (zrang :z3 0 nil :with-scores t)))
+    (zinterstore :z3 '(:z99999 :z2) :aggregate #'*)
+    (is (equal nil (zrang :z3 0 nil :with-scores t)))))
 
 (deftest test-zset-struct ()
   (with-db ("/tmp/lepis/")

@@ -48,7 +48,10 @@
       score)))
 
 (defun zset-interstore (dest zset-weight-list aggregate)
-  (let* ((car (car zset-weight-list))
+  (let* ((zset-weight-list (sort zset-weight-list (lambda (a b)
+                                                    (<= (zset-card (car a))
+                                                        (zset-card (car b))))))
+         (car (car zset-weight-list))
          (car-zset (car car))
          (car-weight (cdr car)))
     (lepis.tree::map-tree
