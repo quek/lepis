@@ -23,6 +23,7 @@
           #:sunion
           #:sdiff
           #:smembers
+          #:with-temp-keys
           #:zcard
           #:zadd
           #:zinc

@@ -312,3 +312,13 @@
           (clrhash hash)
           (clrhash expire-hash)
           (load-db-hash hash expire-hash in))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defmacro with-temp-keys ((&rest keys) &body body)
+  `(alexandria:with-unique-names ,keys
+     (unwind-protect
+          (progn ,@body)
+       (progn
+         ,@(mapcar (lambda (key)
+                     `(del ,key))
+                   keys)))))
