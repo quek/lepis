@@ -74,7 +74,11 @@
     (is (= 2 (zrem :zset 'bar 'foz)))
     (is (equal '(foo baz) (zrang :zset 0 nil))))
   (with-db ("/tmp/lepis/")
-    (is (equal '(foo baz) (zrang :zset 0 nil)))))
+    (is (equal '(foo baz) (zrang :zset 0 nil)))
+    (is (= 2 (zrem :zset 'bar)))
+    (is (equal '(foo) (zrang :zset 0 nil)))
+    (is (= 2 (zrem :zset 'foo)))
+    (is (equal nil (zrang :zset 0 nil)))))
 
 (deftest test-zinterstore ()
   (with-db ("/tmp/lepis/")
