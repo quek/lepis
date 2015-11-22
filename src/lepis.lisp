@@ -246,7 +246,7 @@
   (aif (gethash key hash)
        (zset-score it member)))
 
-(def-write-op zinterstore (hash dest key.weight-list &key (aggregate #'+))
+(def-write-op zinterstore (hash dest key.weight-list &key (aggregate #'+) filter)
   (let ((dest-zset (setf (gethash dest hash) (make-zset)))
         (k.w (loop for i in key.weight-list
                    for zset = (if (consp i)
@@ -257,7 +257,7 @@
                    collect (if (consp i)
                                (cons zset (cadr i))
                                (cons zset 1)))))
-    (zset-interstore dest-zset k.w aggregate)))
+    (zset-interstore dest-zset k.w aggregate filter)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
