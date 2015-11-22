@@ -152,6 +152,17 @@
     (sleep 1)
     (is (eq (@ :a) nil))))
 
+(deftest test-expire-thread ()
+  (with-db ("/tmp/lepis/" :expire-period-second 1)
+    (clear-db)
+    (! :a :a)
+    (expire :a 1)
+    (let ((count (hash-table-count (lepis::db-hash *db*))))
+      (sleep 1.1)
+      (is (= (1- count)
+             (hash-table-count (lepis::db-hash *db*)))))))
+
+
 (deftest test-dump-object-identity ()
   (with-db ("/tmp/lepis/")
     (clear-db)

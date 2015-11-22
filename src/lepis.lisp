@@ -12,13 +12,15 @@
   (last-dumped-time (get-universal-time))
   data-dir
   dump-thread
+  expire-thread
+  (expire-period-second 60 :type fixnum)
   (open-count 1 :type fixnum)
   lock-fd)
 
 (defun db-dump-file (db)
   (merge-pathnames "dump.lisp" (db-data-dir db)))
 
-(defun open-db (data-dir &key (dump-threshold-second 60))
+(defun open-db (data-dir &key (dump-threshold-second 60) (expire-period-second 60))
   (sb-ext:with-locked-hash-table (*db-table*)
     (let ((db (gethash data-dir *db-table*)))
       (if db
@@ -32,17 +34,24 @@
                 (error "Db file is opened by other process."))
               (setf db (%open-db :data-dir data-dir
                                  :dump-threshold-second dump-threshold-second
+                                 :expire-period-second expire-period-second
                                  :lock-fd fd))
               (setf (gethash data-dir *db-table*) db)
               (when (probe-file (db-dump-file db))
                 (load-db db))
-              (let ((thread (sb-thread:make-thread
-                             #'dump-thread
-                             :arguments (list db)
-                             :name (format nil "dump-thread ~a" (db-dump-file db)))))
-                (setf (db-dump-thread db) thread)
+              (let ((dump-thread (sb-thread:make-thread
+                                  #'dump-thread
+                                  :arguments (list db)
+                                  :name (format nil "dump-thread ~a" (db-dump-file db))))
+                    (expire-thread (sb-thread:make-thread
+                                    #'expire-thread
+                                    :arguments (list db)
+                                    :name "expire-thread")))
+                (setf (db-dump-thread db) dump-thread)
+                (setf (db-expire-thread db) expire-thread)
                 (sb-ext:finalize db (lambda ()
-                                      (sb-thread:terminate-thread thread))))))))))
+                                      (sb-thread:terminate-thread expire-thread)
+                                      (sb-thread:terminate-thread dump-thread))))))))))
 
 (defun dump-thread (db)
   (loop (unwind-protect
@@ -52,19 +61,35 @@
               (setf (db-update-count db) 0)
               (ignore-errors (fork-and-dump db)))))))
 
+(defun expire-thread (db)
+  (loop
+    (sleep (db-expire-period-second db))
+    (let ((now (get-universal-time))
+          (expire-hash (db-expire-hash db))
+          (hash (db-hash db)))
+      (maphash (lambda (key time)
+                 (declare (ignore time))
+                 (when (expiredp expire-hash key now)
+                   (sb-ext:with-locked-hash-table (hash)
+                     (when (expiredp expire-hash key now)
+                       (remhash key hash)
+                       (remhash key expire-hash)))))
+               expire-hash))))
+
 (defun close-db (&optional (db *db*))
   (sb-ext:with-locked-hash-table (*db-table*)
     (if (zerop (decf (db-open-count db)))
         (progn
           (remhash (db-data-dir db) *db-table*)
+          (sb-thread:terminate-thread (db-expire-thread db))
           (sb-thread:terminate-thread (db-dump-thread db))
           (dump-db db)
           (unlock-file (db-lock-fd db))
           t)
         nil)))
 
-(defmacro with-db ((data-dir) &body body)
-  `(let ((*db* (open-db ,data-dir)))
+(defmacro with-db ((data-dir &rest args) &body body)
+  `(let ((*db* (open-db ,data-dir ,@args)))
      (unwind-protect (progn ,@body)
        (close-db))))
 
