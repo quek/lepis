@@ -64,27 +64,24 @@
         (zinterstore dest (mapcar #'search-key words))
         (zrang dest 0 nil :from-end t :with-scores with-scores)))))
 
-(defun clear-index ()
-  (mapc #'del (keys "^s ")))
-
 (defun example ()
-  (clear-index)
-  (update-index (make-instance 'document
-                               :title  "オートミール"
-                               :body "穀物粉末9 牛乳3 食用蜂蜜2 タマネギ3"))
-  (update-index (make-instance 'document
-                               :title "柔らかいパン"
-                               :body "生地6 発酵剤2 卵2 牛乳3"))
-  (update-index (make-instance 'document
-                               :title "暗黒プリン"
-                               :body "オートミール1 野菜漬け1 鳥肉5 動物の血7"))
-  (mapc (lambda (q)
-          (format t "~&~a => ~a" q (search-index q)))
-        '("オートミール" "牛乳"))
-  nil)
+  (with-db ("/tmp/lepis-full-text-search/")
+    (clear-db)
+    (update-index (make-instance 'document
+                                 :title  "オートミール"
+                                 :body "穀物粉末9 牛乳3 食用蜂蜜2 タマネギ3"))
+    (update-index (make-instance 'document
+                                 :title "柔らかいパン"
+                                 :body "生地6 発酵剤2 卵2 牛乳3"))
+    (update-index (make-instance 'document
+                                 :title "暗黒プリン"
+                                 :body "オートミール1 野菜漬け1 鳥肉5 動物の血7"))
+    (mapc (lambda (q)
+            (format t "~&~a => ~a" q (search-index q)))
+          '("オートミール" "牛乳"))
+    nil))
 
 (example)
 ;;→ オートミール => (#<DOCUMENT 暗黒プリン {10100C8E93}> #<DOCUMENT オートミール {100FFE0403}>)
 ;;   牛乳 => (#<DOCUMENT 柔らかいパン {1010055763}> #<DOCUMENT オートミール {100FFE0403}>)
 ;;⇒ NIL
-
