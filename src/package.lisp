@@ -33,4 +33,6 @@
           #:zrang-by-score
           #:zrank
           #:zrem
-          #:zscore))
+          #:zscore
+          #:zunion
+          #:zunionstore))

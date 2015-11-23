@@ -11,7 +11,8 @@
            #:zset-range
            #:zset-range-by-score
            #:zset-rank
-           #:zset-score))
+           #:zset-score
+           #:zset-unionstore))
 
 (in-package :lepis.zset)
 
@@ -69,6 +70,34 @@
              (when score
                (zset-add dest score key))))))
      (zset-tree car-zset))))
+
+(defun zset-unionstore (dest zset-weight-list aggregate filter)
+  (let ((zset-weight-list (sort zset-weight-list (lambda (a b)
+                                                   (> (zset-card (car a))
+                                                      (zset-card (car b)))))))
+    (let* ((car (car zset-weight-list))
+           (zset (car car))
+           (weight (cdr car)))
+      (lepis.tree::map-tree
+       (lambda (node)
+         (let ((key (lepis.tree::node-value node)))
+           (when (or (null filter) (funcall filter key))
+             (let ((score (* (zset-score zset key) weight)))
+               (zset-add dest score key)))))
+       (zset-tree zset)))
+    (loop for (zset . weight) in (cdr zset-weight-list)
+          do (lepis.tree::map-tree
+              (lambda (node)
+                (let ((key (lepis.tree::node-value node)))
+                  (when (or (null filter) (funcall filter key))
+                    (let ((old-score (zset-score dest key))
+                          (new-score (* (zset-score zset key) weight)))
+                      (zset-add dest
+                                (if old-score
+                                    (funcall aggregate old-score new-score)
+                                    new-score)
+                                key)))))
+              (zset-tree zset)))))
 
 (defun zset-range (zset start stop with-scores from-end)
   (let ((tree (zset-tree zset)))

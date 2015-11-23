@@ -269,6 +269,28 @@
     (%zinter dest-zset key.weight-list aggregate filter)
     (zset-range dest-zset start stop with-scores from-end)))
 
+(defun %zunion (dest-zset key.weight-list aggregate filter)
+  (let ((k.w (loop for i in key.weight-list
+                   for zset = (if (consp i)
+                                  (@ (car i))
+                                  (@ i))
+                   if zset
+                     collect (if (consp i)
+                                 (cons zset (cadr i))
+                                 (cons zset 1)))))
+    (zset-unionstore dest-zset k.w aggregate filter)
+    (zset-card dest-zset)))
+
+(def-write-op zunionstore (hash dest key.weight-list &key (aggregate #'+) filter)
+  (let ((dest-zset (setf (gethash dest hash) (make-zset))))
+    (%zunion dest-zset key.weight-list aggregate filter)))
+
+(def-write-op zunion (hash key.weight-list &key (aggregate #'+) filter
+                           (start 0) stop with-scores from-end)
+  (let ((dest-zset (make-zset)))
+    (%zunion dest-zset key.weight-list aggregate filter)
+    (zset-range dest-zset start stop with-scores from-end)))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; set
 
