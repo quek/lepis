@@ -246,19 +246,28 @@
   (aif (gethash key hash)
        (zset-score it member)))
 
-(def-write-op zinterstore (hash dest key.weight-list &key (aggregate #'+) filter)
-  (let ((dest-zset (setf (gethash dest hash) (make-zset)))
-        (k.w (loop for i in key.weight-list
+(defun %zinter (dest-zset key.weight-list aggregate filter)
+  (let ((k.w (loop for i in key.weight-list
                    for zset = (if (consp i)
                                   (@ (car i))
                                   (@ i))
                    unless zset
-                     do (return-from zinterstore nil)
+                     do (return-from %zinter nil)
                    collect (if (consp i)
                                (cons zset (cadr i))
                                (cons zset 1)))))
-    (zset-interstore dest-zset k.w aggregate filter)))
+    (zset-interstore dest-zset k.w aggregate filter)
+    (zset-card dest-zset)))
 
+(def-write-op zinterstore (hash dest key.weight-list &key (aggregate #'+) filter)
+  (let ((dest-zset (setf (gethash dest hash) (make-zset))))
+    (%zinter dest-zset key.weight-list aggregate filter)))
+
+(def-write-op zinter (hash key.weight-list &key (aggregate #'+) filter
+                           (start 0) stop with-scores from-end)
+  (let ((dest-zset (make-zset)))
+    (%zinter dest-zset key.weight-list aggregate filter)
+    (zset-range dest-zset start stop with-scores from-end)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; set
