@@ -13,4 +13,4 @@
                              (:file "emit-standard-object")
                              (:file "lepis")
                              (:file "interrupt"))))
-  :depends-on (anaphora cl-ppcre))
+  :depends-on (anaphora cl-ppcre alexandria))
