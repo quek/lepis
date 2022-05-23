@@ -46,6 +46,7 @@
   (:method (x y)
     (string= (prin1-to-string x) (prin1-to-string y))))
 
+#-windows
 (defun lock-file (file)
   (handler-case
       (let ((fd (sb-posix:open file (logior sb-posix:o-wronly sb-posix:o-creat) #8r666)))
@@ -58,8 +59,15 @@
     (sb-posix:syscall-error (error)
       (describe error)
       nil)))
+#+windows
+(defun lock-file (file)
+  (declare (ignore file))
+  0)
 
 (defun unlock-file (fd)
+  #+windows
+  (declare (ignore fd))
+  #-windows
   (handler-case
       (progn
         (sb-posix:fcntl fd sb-posix:f-setlk (make-instance 'sb-posix:flock
@@ -74,9 +82,16 @@
       nil)))
 
 (defun tempfile (dir)
+  #-windows
   (multiple-value-bind (fd file)
       (sb-posix:mkstemp
        (namestring
         (merge-pathnames "dump-temp-XXXXXX" dir)))
     (sb-posix:close fd)
-    file))
+    file)
+  #+windows
+  (loop for file = (merge-pathnames (format nil "~a-~a.tmp"  (gensym) (get-universal-time)) dir)
+          thereis (ignore-errors (with-open-file (in file :direction :output
+                                                      :if-exists :error)
+                                   (namestring file)))))
+

@@ -39,7 +39,8 @@
               (setf (gethash data-dir *db-table*) db)
               (when (probe-file (db-dump-file db))
                 (load-db db))
-              (let ((dump-thread (sb-thread:make-thread
+              (let (#-windows
+                    (dump-thread (sb-thread:make-thread
                                   #'dump-thread
                                   :arguments (list db)
                                   :name (format nil "dump-thread ~a" (db-dump-file db))))
@@ -47,10 +48,12 @@
                                     #'expire-thread
                                     :arguments (list db)
                                     :name "expire-thread")))
+                #-windows
                 (setf (db-dump-thread db) dump-thread)
                 (setf (db-expire-thread db) expire-thread)
                 (sb-ext:finalize db (lambda ()
                                       (sb-thread:terminate-thread expire-thread)
+                                      #-windows
                                       (sb-thread:terminate-thread dump-thread))))))))))
 
 (defun dump-thread (db)
@@ -82,6 +85,7 @@
         (progn
           (remhash (db-data-dir db) *db-table*)
           (sb-thread:terminate-thread (db-expire-thread db))
+          #-windows
           (sb-thread:terminate-thread (db-dump-thread db))
           (dump-db db)
           (unlock-file (db-lock-fd db))
@@ -348,15 +352,20 @@
           (dump-db-hash hash (db-expire-hash db) out))
         (multiple-value-bind (s mi h d m y) (decode-universal-time (get-universal-time))
           (format out "~%;; ~d-~2,'0d-~2,'0d ~2,'0d:~2,'0d:~2,'0d" y m d h mi s))))
+    #+windows
+    (delete-file (db-dump-file db))
     (rename-file file (db-dump-file db))))
 
 (defun fork-and-dump (db)
+  #-windows
   (let ((pid (sb-posix:posix-fork)))
     (if (zerop pid)
         (progn
           (dump-db db)
           (sb-posix:_exit 0))
-        (sb-posix:waitpid pid 0))))
+        (sb-posix:waitpid pid 0)))
+  #+windows
+  (dump-db db))
 
 (defun load-db (db)
   (with-open-file (in (db-dump-file db))

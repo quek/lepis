@@ -14,6 +14,7 @@
                (ignore-errors (force-output *standard-input*)))
              *db-table*)))
 
+#-windows
 (defmacro setup-signal-handler (old-handler-symbol signal)
   `(unless ,old-handler-symbol
      (setf ,old-handler-symbol
@@ -30,6 +31,10 @@
                          ((functionp ,old-handler-symbol)
                           (apply ,old-handler-symbol args)))))))))))
 
+
+#-windows
 (setup-signal-handler *old-sigint-handler* sb-unix:sigint)
+#-windows
 (setup-signal-handler *old-sigterm-handler* sb-unix:sigterm)
+#-windows
 (setup-signal-handler *old-sighup-handler* sb-unix:sighup)
