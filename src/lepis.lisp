@@ -353,7 +353,8 @@
         (multiple-value-bind (s mi h d m y) (decode-universal-time (get-universal-time))
           (format out "~%;; ~d-~2,'0d-~2,'0d ~2,'0d:~2,'0d:~2,'0d" y m d h mi s))))
     #+windows
-    (delete-file (db-dump-file db))
+    (when (probe-file (db-dump-file db))
+      (delete-file (db-dump-file db)))
     (rename-file file (db-dump-file db))))
 
 (defun fork-and-dump (db)

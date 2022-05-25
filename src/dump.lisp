@@ -78,13 +78,29 @@
 (defgeneric emit (object stream))
 
 (defmethod emit (object stream)
-  (print object stream))
+  (write-char #\space stream)
+  (prin1 object stream))
+
+(defmethod emit ((object null) stream)
+  (write-char #\space stream)
+  (prin1 nil stream))
 
 (defmethod emit ((list cons) stream)
-  (format stream "~%#.(list ")
+  (format stream "~%#.(list")
   (loop for i in list
         do (emit-object i stream))
   (write-char #\) stream))
+
+(defmethod emit ((object string) stream)
+  (print object stream))
+
+(defmethod emit ((array array) stream)
+  (format stream "~%#.(let ((x #(")
+  (let ((*sharp-dot* nil))
+    (loop for x across array
+          do (emit-object x stream)))
+  (format stream ")))~%  (coerce x '~a))" (type-of array)))
+
 
 (defvar *sharp-dot* t)
 
