@@ -6,6 +6,7 @@
 (defconstant +dump-hash-mark+ '+dump-hash-mark+)
 
 (defvar *dump-objects* nil)
+(defvar *set-refrence-functions* nil)
 
 (defun make-object-table (hash)
   (let ((table (make-hash-table :test 'eql))
@@ -75,100 +76,114 @@
     :else (store-object object hash done)))
 
 
-(defgeneric emit (object stream))
+(defgeneric emit (object stream sharp-dot))
 
-(defmethod emit (object stream)
+(defmethod emit (object stream sharp-dot)
   (write-char #\space stream)
   (prin1 object stream))
 
-(defmethod emit ((object null) stream)
+(defmethod emit ((object null) stream sharp-dot)
   (write-char #\space stream)
   (prin1 nil stream))
 
-(defmethod emit ((list cons) stream)
-  (format stream "~%#.(list")
-  (loop for i in list
-        do (emit-object i stream))
-  (write-char #\) stream))
+(defmethod emit ((list cons) stream sharp-dot)
+  (format stream "~%~a(let ((x (list" sharp-dot)
+  (let ((setter
+          (loop for i in list
+                for n from 0
+                for setter = (format nil "(lambda () (setf (nth ~d x) ~~a))" n)
+                collect (emit-object i stream :setter setter))))
+    (format stream "))) ~{~a~} x)" setter)))
 
-(defmethod emit ((object string) stream)
+(defmethod emit ((object string) stream sharp-dot)
   (print object stream))
 
-(defmethod emit ((array array) stream)
-  (format stream "~%#.(let ((x #(")
-  (let ((*sharp-dot* nil))
-    (loop for x across array
-          do (emit-object x stream)))
-  (format stream ")))~%  (coerce x '~a))" (type-of array)))
+(defmethod emit ((array array) stream sharp-dot)
+  (format stream "~%~a(let ((x #(" sharp-dot)
+  (let ((setter
+          (loop for x across array
+                for n from 0
+                for setter = (format nil "(lambda () (setf (aref x ~d) ~~a))" n)
+                collect (emit-object x stream :setter setter))))
+    (format stream ")))~% ~{~a~} (coerce x '~a))" setter (type-of array))))
 
-
-(defvar *sharp-dot* t)
-
-(defun emit-object (object stream)
+(defun emit-object (object stream &key setter (sharp-dot ""))
   (aif (gethash object *dump-objects*)
        (progn
          (terpri stream)
-         (when *sharp-dot*
-           (write-string "#." stream))
-         (format stream "(~s ~d)" 'l it))
-       (emit object stream)))
+         (if setter
+             (progn
+               (write-string " t" stream)
+               (format nil "(push ~a lepis::*set-refrence-functions*)"
+                       (format nil setter
+                               (format nil "(~s ~d)" 'l it))))
+             (progn
+               (format stream " ~a(~s ~d)" sharp-dot 'l it)
+               "")))
+       (progn
+         (emit object stream sharp-dot)
+         "")))
 
 (defun emit-value-object (object stream)
   (with-value-type-case object
     :zset (progn
-            (emit +dump-zset-mark+ stream)
+            (emit +dump-zset-mark+ stream "")
             (maphash (lambda (key score)
-                       (emit-object key stream)
-                       (emit-object score stream))
+                       (emit-object key stream :sharp-dot " #.")
+                       (emit-object score stream :sharp-dot " #."))
                      (lepis.zset::zset-hash object))
-            (emit +dump-end-of-object-mark+ stream)
-            (emit +dump-end-of-object-mark+ stream))
+            (emit +dump-end-of-object-mark+ stream "")
+            (emit +dump-end-of-object-mark+ stream ""))
     :set (progn
-           (emit +dump-set-mark+ stream)
+           (emit +dump-set-mark+ stream "")
            (lepis.set:map-set (lambda (value)
-                                (emit-object value stream))
+                                (emit-object value stream :sharp-dot " #."))
                   object)
-           (emit +dump-end-of-object-mark+ stream))
+           (emit +dump-end-of-object-mark+ stream ""))
     :hash (progn
-            (emit +dump-hash-mark+ stream)
+            (emit +dump-hash-mark+ stream "")
             (maphash (lambda (key value)
-                       (emit-object key stream)
-                       (emit-object value stream))
+                       (emit-object key stream :sharp-dot " #.")
+                       (emit-object value stream :sharp-dot " #."))
                      object)
-            (emit +dump-end-of-object-mark+ stream)
-            (emit +dump-end-of-object-mark+ stream))
-    :else (emit-object object stream)))
+            (emit +dump-end-of-object-mark+ stream "")
+            (emit +dump-end-of-object-mark+ stream ""))
+    :else (emit-object object stream :sharp-dot " #.")))
 
 (defun dump-db-hash (hash expire-hash stream)
   (let ((*dump-objects* (make-object-table hash)))
     (maphash (lambda (key value)
-               (emit value stream)
-               (emit key stream))
+               (terpri stream)
+               (emit value stream "")
+               (emit key stream " #."))
              *dump-objects*)
-    (emit +dump-end-of-object-mark+ stream) ;for key
-    (emit +dump-end-of-object-mark+ stream) ;for value
+    (emit +dump-end-of-object-mark+ stream "") ;for key
+    (emit +dump-end-of-object-mark+ stream "") ;for value
     (maphash (lambda (key value)
-               (emit-object key stream)
+               (emit-object key stream :sharp-dot " #.")
                (emit-value-object value stream))
              hash)
-    (emit +dump-end-of-object-mark+ stream) ;for key
-    (emit +dump-end-of-object-mark+ stream) ;for value
+    (emit +dump-end-of-object-mark+ stream "") ;for key
+    (emit +dump-end-of-object-mark+ stream "") ;for value
     (maphash (lambda (key value)
-               (emit-object key stream)
-               (emit-object value stream))
+               (emit-object key stream  :sharp-dot " #.")
+               (emit-object value stream :sharp-dot " #."))
              expire-hash)
-    (emit +dump-end-of-object-mark+ stream)   ;for key
-    (emit +dump-end-of-object-mark+ stream))) ;for value
+    (emit +dump-end-of-object-mark+ stream "")   ;for key
+    (emit +dump-end-of-object-mark+ stream ""))) ;for value
 
 (defun l (id)
   (gethash id *dump-objects*))
 
 (defun load-dump-objects (stream)
-  (let ((*dump-objects* (make-hash-table :test 'eql)))
+  (let ((*dump-objects* (make-hash-table :test 'eql))
+        (*set-refrence-functions* nil))
     (loop for key = (read stream)
           for value = (read stream)
           while (not (eq key +dump-end-of-object-mark+))
           do (setf (gethash key *dump-objects*) value))
+    (loop for f in *set-refrence-functions*
+          do (funcall f))
     *dump-objects*))
 
 (defun load-db-hash (hash expire-hash stream)

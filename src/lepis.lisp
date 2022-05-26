@@ -36,7 +36,6 @@
                                  :dump-threshold-second dump-threshold-second
                                  :expire-period-second expire-period-second
                                  :lock-fd fd))
-              (setf (gethash data-dir *db-table*) db)
               (when (probe-file (db-dump-file db))
                 (load-db db))
               (let (#-windows
@@ -54,7 +53,8 @@
                 (sb-ext:finalize db (lambda ()
                                       (sb-thread:terminate-thread expire-thread)
                                       #-windows
-                                      (sb-thread:terminate-thread dump-thread))))))))))
+                                      (sb-thread:terminate-thread dump-thread))))
+              (setf (gethash data-dir *db-table*) db)))))))
 
 (defun dump-thread (db)
   (loop (unwind-protect

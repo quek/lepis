@@ -233,4 +233,17 @@
   (with-db ("/tmp/lepis/")
     (is (= 1000 (@ :foo)))))
 
+(deftest test-circular-referencing ()
+  (with-db ("/tmp/lepis/")
+    (clear-db)
+    (let* ((x (make-instance 'bar :b 1111))
+           (y (make-instance 'bar :a x :b 2228)))
+      (setf (slot-value x 'a) y)
+      (! :y y)))
+  (with-db ("/tmp/lepis/")
+    (let* ((y (@ :y))
+           (x (slot-value y 'a)))
+      (is (eq y (slot-value x 'a)))
+      (slot-value y 'b))))
+
 (run-package-tests :interactive t)
