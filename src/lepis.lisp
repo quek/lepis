@@ -8,19 +8,22 @@
   (hash (make-hash-table :synchronized t :test 'equal))
   (expire-hash (make-hash-table :synchronized t :test 'equal))
   (update-count 0 :type fixnum)
-  (dump-threshold-second 60 :type fixnum)
+  (dump-threshold-second 60)
   (last-dumped-time (get-universal-time))
   data-dir
   dump-thread
   expire-thread
   (expire-period-second 60 :type fixnum)
   (open-count 1 :type fixnum)
-  lock-fd)
+  lock-fd
+  dump-when-close)
 
 (defun db-dump-file (db)
   (merge-pathnames "dump.lisp" (db-data-dir db)))
 
-(defun open-db (data-dir &key (dump-threshold-second 60) (expire-period-second 60))
+(defun open-db (data-dir &key (dump-threshold-second 60)
+                           (expire-period-second 60)
+                           (dump-when-close t))
   (sb-ext:with-locked-hash-table (*db-table*)
     (let ((db (gethash data-dir *db-table*)))
       (if db
@@ -35,14 +38,17 @@
               (setf db (%open-db :data-dir data-dir
                                  :dump-threshold-second dump-threshold-second
                                  :expire-period-second expire-period-second
-                                 :lock-fd fd))
+                                 :lock-fd fd
+                                 :dump-when-close dump-when-close))
               (when (probe-file (db-dump-file db))
                 (load-db db))
               (let (#-windows
-                    (dump-thread (sb-thread:make-thread
-                                  #'dump-thread
-                                  :arguments (list db)
-                                  :name (format nil "dump-thread ~a" (db-dump-file db))))
+                    (dump-thread (if dump-threshold-second
+                                     (sb-thread:make-thread
+                                      #'dump-thread
+                                      :arguments (list db)
+                                      :name (format nil "dump-thread ~a" (db-dump-file db)))
+                                     nil))
                     (expire-thread (sb-thread:make-thread
                                     #'expire-thread
                                     :arguments (list db)
@@ -53,7 +59,8 @@
                 (sb-ext:finalize db (lambda ()
                                       (sb-thread:terminate-thread expire-thread)
                                       #-windows
-                                      (sb-thread:terminate-thread dump-thread))))
+                                      (when dump-thread
+                                       (sb-thread:terminate-thread dump-thread)))))
               (setf (gethash data-dir *db-table*) db)))))))
 
 (defun dump-thread (db)
@@ -87,7 +94,8 @@
           (sb-thread:terminate-thread (db-expire-thread db))
           #-windows
           (sb-thread:terminate-thread (db-dump-thread db))
-          (dump-db db)
+          (when (db-dump-when-close db)
+            (dump-db db))
           (unlock-file (db-lock-fd db))
           t)
         nil)))
@@ -342,7 +350,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; dump & load
-(defun dump-db (db)
+(defun dump-db (&optional (db *db*))
   (let ((file (tempfile (db-data-dir db)))
         (hash (db-hash db)))
     (with-open-file (out file :direction :output :if-exists :overwrite)
