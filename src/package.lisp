@@ -11,6 +11,8 @@
           #:!
           #:@
           #:del
+          #:emit
+          #:emit-slot
           #:expire
           #:inc
           #:hdel
