@@ -99,14 +99,26 @@
   (print object stream))
 
 (defmethod emit ((array array) stream sharp-dot)
-  (format stream "~%~a(let ((x (make-array ~d :initial-contents (list"
-          sharp-dot (array-dimension array 0))
-  (let ((setter
-          (loop for x across array
-                for n from 0
-                for setter = (format nil "(setf (aref x ~d) ~~a)" n)
-                collect (emit-object x stream :setter setter))))
-    (format stream "))))~%~{ ~a~} (coerce x '~a))" setter (type-of array))))
+  ;; FIXME :initial-contents 使うと遅いので実装をわけているがもうちょっとなんとかしたい
+  (if (loop for i across array
+            always (numberp i))
+      (progn
+        (format stream "~%~a(let ((x #(" sharp-dot)
+        (let ((setter
+                (loop for x across array
+                      for n from 0
+                      for setter = (format nil "(setf (aref x ~d) ~~a)" n)
+                      collect (emit-object x stream :setter setter))))
+          (format stream ")))~%~{ ~a~} (coerce x '~a))" setter (type-of array))))
+      (progn
+        (format stream "~%~a(let ((x (make-array ~d :initial-contents (list"
+                sharp-dot (array-dimension array 0))
+        (let ((setter
+                (loop for x across array
+                      for n from 0
+                      for setter = (format nil "(setf (aref x ~d) ~~a)" n)
+                      collect (emit-object x stream :setter setter))))
+          (format stream "))))~%~{ ~a~} (coerce x '~a))" setter (type-of array))))))
 
 (defun emit-object (object stream &key setter (sharp-dot ""))
   (aif (gethash object *dump-objects*)
