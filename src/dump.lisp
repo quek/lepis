@@ -91,9 +91,9 @@
   (let ((setter
           (loop for i in list
                 for n from 0
-                for setter = (format nil "(lambda () (setf (nth ~d x) ~~a))" n)
+                for setter = (format nil "(setf (nth ~d x) ~~a)" n)
                 collect (emit-object i stream :setter setter))))
-    (format stream "))) ~{~a~} x)" setter)))
+    (format stream ")))~{ ~a~} x)" setter)))
 
 (defmethod emit ((object string) stream sharp-dot)
   (print object stream))
@@ -104,9 +104,9 @@
   (let ((setter
           (loop for x across array
                 for n from 0
-                for setter = (format nil "(lambda () (setf (aref x ~d) ~~a))" n)
+                for setter = (format nil "(setf (aref x ~d) ~~a)" n)
                 collect (emit-object x stream :setter setter))))
-    (format stream "))))~% ~{~a~} (coerce x '~a))" setter (type-of array))))
+    (format stream "))))~%~{ ~a~} (coerce x '~a))" setter (type-of array))))
 
 (defun emit-object (object stream &key setter (sharp-dot ""))
   (aif (gethash object *dump-objects*)
@@ -115,7 +115,7 @@
          (if setter
              (progn
                (write-string " t" stream)
-               (format nil "(push ~a lepis::*set-refrence-functions*)"
+               (format nil "(LEPIS::M ~a)"
                        (format nil setter
                                (format nil "(~s ~d)" 'l it))))
              (progn
@@ -124,6 +124,9 @@
        (progn
          (emit object stream sharp-dot)
          "")))
+
+(defmacro m (&body body)
+  `(push (lambda () ,@body) *set-refrence-functions*))
 
 (defun emit-value-object (object stream)
   (with-value-type-case object

@@ -10,10 +10,10 @@
                               (format stream "~%(setf (slot-value x '~s)" slot)
                               (emit-slot object slot stream)
                             (write-char #\) stream)))))
-    (format stream "~% ~{~a~} x)" setter)))
+    (format stream "~%~{ ~a~} x)" setter)))
 
 (defmethod emit-slot ((object standard-object) slot stream)
   (emit-object
    (slot-value object slot) stream
    :setter
-   (format nil "(lambda () (setf (slot-value x '~s) ~~a))" slot)))
+   (format nil "(setf (slot-value x '~s) ~~a)" slot)))
